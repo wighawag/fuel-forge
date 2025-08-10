@@ -1,0 +1,22 @@
+layout {
+	pane split_direction="vertical" {
+		
+	}
+	pane split_direction="vertical" {
+		pane name="web" command="pnpm"  {
+			args "web:dev"
+		}
+		pane name="svelte-check" command="pnpm"  {
+			args "--filter" "./web" "check:watch"
+		}
+	}
+
+	pane split_direction="vertical" {
+        pane name="onchain" command="pnpm"  {
+			args "onchain:dev"
+		}
+        pane name="onchain:typescript" command="pnpm"  {
+			args "onchain:typescript:watch"
+		}
+	}
+}
