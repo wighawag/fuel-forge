@@ -22,6 +22,6 @@
     "dev": "fuels dev",
     "build": "fuels build && pnpm typescript",
     "typescript": "node fix-imports.js && tsc --project typescript/tsconfig.json",
-    "typescript:watch": "cd typescript && as-soon -w src pnpm typescript"
+    "typescript:watch": "as-soon -w typescript/src pnpm typescript"
   }
 }
