@@ -1,10 +1,24 @@
 {
   "name": "first-fuel-onchain",
   "version": "0.0.0",
-  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "default": "./dist/esm/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@types/node": "^24.2.1",
     "fuels": "^0.101.3",
-    "ldenv": "^0.3.12"
+    "ldenv": "^0.3.12",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "fuels build && node fix-imports.js && pnpm typescript",
+    "typescript": "cd typescript && tsc --project tsconfig.json"
   }
 }

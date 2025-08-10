@@ -19,6 +19,9 @@ importers:
       ldenv:
         specifier: ^0.3.12
         version: 0.3.12
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.2
 
   web:
     devDependencies:

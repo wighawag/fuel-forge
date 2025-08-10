@@ -11,7 +11,7 @@ const providerUrl =
 
 export default createConfig({
   workspace: "./", // Path to your Sway workspace
-  output: "./dist", // Where your generated types will be saved
+  output: "./typescript/src", // Where your generated types will be saved
   fuelCorePort,
   providerUrl,
 });
