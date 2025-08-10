@@ -19,7 +19,7 @@ impl Counter for Contract {
     // The `get_count` function returns the current value of the counter.
     #[storage(read)]
     fn get_count() -> u64 {
-        storage.counter.read()
+        storage.counter.read() + 2
     }
 
     // The `increment_counter` function increments the counter by the given amount.
