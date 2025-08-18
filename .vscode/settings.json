@@ -1,0 +1,5 @@
+{
+  "[sway]": {
+    "editor.defaultFormatter": "FuelLabs.sway-vscode-plugin"
+  }
+}

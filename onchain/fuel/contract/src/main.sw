@@ -6,7 +6,6 @@ use std::codec::encode;
 use std::bytes::Bytes;
 use std::hash::*;
 
-
 // ----------------------------------------------------------------------------
 // EXTERNAL TYPES
 // ----------------------------------------------------------------------------
@@ -19,27 +18,26 @@ struct Activation {
 struct InstantFleet {
     from: u64,
     spaceships: u64,
-    destination: u64
+    destination: u64,
 }
 
 struct LongRangeFleet {
     from: u64,
     spaceships: u64,
-    destinationHash: b256
+    destinationHash: b256,
 }
 
 enum Action {
     Activate: Activation,
     InstantSend: InstantFleet,
-    LongRangeSend: LongRangeFleet
+    LongRangeSend: LongRangeFleet,
 }
-
 
 struct RevealedFleet {
     epoch: u64,
     from: u64,
     spaceships: u64,
-    destination: u64
+    destination: u64,
 }
 
 // ----------------------------------------------------------------------------
@@ -50,7 +48,7 @@ struct RevealedFleet {
 // ----------------------------------------------------------------------------
 struct Commitment {
     hash: b256,
-    epoch: u64
+    epoch: u64,
 }
 // ----------------------------------------------------------------------------
 
@@ -61,7 +59,7 @@ struct Commitment {
 struct CommitmentSubmitted {
     account: Identity,
     epoch: u64,
-    hash: b256
+    hash: b256,
 }
 // ----------------------------------------------------------------------------
 
@@ -81,7 +79,7 @@ pub enum SpaceError {
     #[error(m = "Invalid epoch, you can only reveal actions in the current epoch")]
     InvalidEpoch: (),
     #[error(m = "Hash revealed does not match the one computed from actions and secret")]
-    CommitmentHashNotMatching: ()
+    CommitmentHashNotMatching: (),
 }
 // ----------------------------------------------------------------------------
 
@@ -93,8 +91,7 @@ abi Space {
     // TODO remove, used for testing only
     fn identity() -> Identity;
 
-
-    #[storage(write,read)]
+    #[storage(write, read)]
     fn commit_actions(hash: b256);
 
     #[storage(write, read)]
@@ -132,7 +129,6 @@ const START_TIME: Time = Time::new(0);
 // FUNCTIONS
 // ----------------------------------------------------------------------------
 fn _epoch() -> (u64, bool) {
-
     let epochDuration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
     let time = _timestamp();
     let timePassed: Duration = time.duration_since(START_TIME).unwrap();
@@ -140,7 +136,6 @@ fn _epoch() -> (u64, bool) {
     // epoch start at 2, this make the hypothetical previous reveal phase's epoch to be 1
     let epoch = timePassed.as_seconds() / (epochDuration.as_seconds()) + 2;
     let commiting = timePassed.as_seconds() - ((epoch - 2) * epochDuration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
-
     (epoch, commiting)
 }
 
@@ -148,23 +143,25 @@ fn _timestamp() -> Time {
     Time::now()
 }
 
-
 fn _hashActions(actions: Vec<Action>, secret: b256) -> b256 {
-    sha256({
-        let mut bytes = Bytes::new();
-        bytes.append(Bytes::from(encode(actions)));
-        bytes.append(Bytes::from(encode(secret)));
-        bytes
-    })
-}   
-
+    sha256(
+        {
+            let mut bytes = Bytes::new();
+            bytes
+                .append(Bytes::from(encode(actions)));
+            bytes
+                .append(Bytes::from(encode(secret)));
+            bytes
+        },
+    )
+}
 fn _checkHash(commitmentHash: b256, actions: Vec<Action>, secret: b256) {
-
-     // TODO reaction
-    if commitmentHash == 0x0000000000000000000000000000000000000000000000000000000000000000 {
+    // TODO reaction
+    if commitmentHash == 0x0000000000000000000000000000000000000000000000000000000000000000
+    {
         return;
     }
-    
+
     let computedHash = _hashActions(actions, secret);
 
     if commitmentHash != computedHash {
@@ -180,16 +177,13 @@ fn _checkHash(commitmentHash: b256, actions: Vec<Action>, secret: b256) {
 // ----------------------------------------------------------------------------
 
 impl Space for Contract {
-
     // TODO remove, used for testing only
     fn identity() -> Identity {
         msg_sender().unwrap()
     }
 
-
     #[storage(write, read)]
-    fn commit_actions(hash: b256)  {
-
+    fn commit_actions(hash: b256) {
         let (epoch, commiting) = _epoch();
 
         if !commiting {
@@ -197,11 +191,10 @@ impl Space for Contract {
         }
 
         let account = msg_sender().unwrap();
-        let mut commitment = storage.commitments.get(account).try_read()
-            .unwrap_or(Commitment {
-                hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
-                epoch: 0
-            });
+        let mut commitment = storage.commitments.get(account).try_read().unwrap_or(Commitment {
+            hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
+            epoch: 0,
+        });
 
         if commitment.epoch != 0 && commitment.epoch != epoch {
             panic SpaceError::PreviousCommitmentNotRevealed;
@@ -214,7 +207,7 @@ impl Space for Contract {
         log(CommitmentSubmitted {
             account: account,
             epoch: epoch,
-            hash: hash
+            hash: hash,
         });
     }
 
@@ -224,11 +217,10 @@ impl Space for Contract {
         if commiting {
             panic SpaceError::InCommitmentPhase;
         }
-         let mut commitment = storage.commitments.get(account).try_read()
-            .unwrap_or(Commitment {
-                hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
-                epoch: 0
-            });
+        let mut commitment = storage.commitments.get(account).try_read().unwrap_or(Commitment {
+            hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
+            epoch: 0,
+        });
 
         if commitment.epoch == 0 {
             panic SpaceError::NothingToReveal;
@@ -239,15 +231,11 @@ impl Space for Contract {
 
         let hashRevealed = commitment.hash;
         _checkHash(hashRevealed, actions, secret);
-        
 
         // TODO process actions
-        
-
         commitment.epoch = 0; // used
         storage.commitments.insert(account, commitment);
     }
-    
 }
 // ----------------------------------------------------------------------------
 
@@ -263,15 +251,22 @@ fn should_work() {
     log(identity);
     let identity = caller.identity();
     log(identity);
-
     let mut actions: Vec<Action> = Vec::new();
     actions.push(Action::Activate(Activation { system: 1 }));
-    actions.push(Action::InstantSend(InstantFleet { from: 1, spaceships:   100, destination: 2 }));
-    actions.push(Action::LongRangeSend(LongRangeFleet { from: 1, spaceships: 100, destinationHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef }));
+    actions.push(Action::InstantSend(InstantFleet {
+        from: 1,
+        spaceships: 100,
+        destination: 2,
+    }));
+    actions.push(Action::LongRangeSend(LongRangeFleet {
+        from: 1,
+        spaceships: 100,
+        destinationHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+    }));
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
     let hash = _hashActions(actions, secret);
     caller.commit_actions(hash);
-  
+
     caller.reveal_actions(identity, secret, actions);
 }
 // ----------------------------------------------------------------------------
