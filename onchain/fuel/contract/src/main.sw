@@ -90,6 +90,10 @@ pub enum SpaceError {
 // ABI
 // ----------------------------------------------------------------------------
 abi Space {
+    // TODO remove, used for testing only
+    fn identity() -> Identity;
+
+
     #[storage(write,read)]
     fn commit_actions(hash: b256);
 
@@ -144,22 +148,26 @@ fn _timestamp() -> Time {
     Time::now()
 }
 
-fn _checkHash(hashRevealed: b256, actions: Vec<Action>, secret: b256) {
 
-     // TODO reaction
-    if hashRevealed == 0x0000000000000000000000000000000000000000000000000000000000000000 {
-        return;
-    }
-    
-    let computedHash = sha256({
+fn _hashActions(actions: Vec<Action>, secret: b256) -> b256 {
+    sha256({
         let mut bytes = Bytes::new();
-        bytes.append(Bytes::from(encode(hashRevealed)));
         bytes.append(Bytes::from(encode(actions)));
         bytes.append(Bytes::from(encode(secret)));
         bytes
-    });
+    })
+}   
 
-    if hashRevealed != computedHash {
+fn _checkHash(commitmentHash: b256, actions: Vec<Action>, secret: b256) {
+
+     // TODO reaction
+    if commitmentHash == 0x0000000000000000000000000000000000000000000000000000000000000000 {
+        return;
+    }
+    
+    let computedHash = _hashActions(actions, secret);
+
+    if commitmentHash != computedHash {
         panic SpaceError::CommitmentHashNotMatching;
     }
 }
@@ -172,6 +180,13 @@ fn _checkHash(hashRevealed: b256, actions: Vec<Action>, secret: b256) {
 // ----------------------------------------------------------------------------
 
 impl Space for Contract {
+
+    // TODO remove, used for testing only
+    fn identity() -> Identity {
+        msg_sender().unwrap()
+    }
+
+
     #[storage(write, read)]
     fn commit_actions(hash: b256)  {
 
@@ -242,7 +257,21 @@ impl Space for Contract {
 // ----------------------------------------------------------------------------
 #[test]
 fn should_work() {
-    let contract_instance = abi(Space, CONTRACT_ID);
+    let caller = abi(Space, CONTRACT_ID);
+
+    let identity = caller.identity();
+    log(identity);
+    let identity = caller.identity();
+    log(identity);
+
+    let mut actions: Vec<Action> = Vec::new();
+    actions.push(Action::Activate(Activation { system: 1 }));
+    actions.push(Action::InstantSend(InstantFleet { from: 1, spaceships:   100, destination: 2 }));
+    actions.push(Action::LongRangeSend(LongRangeFleet { from: 1, spaceships: 100, destinationHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef }));
+    let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    let hash = _hashActions(actions, secret);
+    caller.commit_actions(hash);
   
+    caller.reveal_actions(identity, secret, actions);
 }
 // ----------------------------------------------------------------------------
