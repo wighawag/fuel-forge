@@ -268,11 +268,8 @@ impl Space for Contract {
 #[test]
 fn can_commit_and_reveal() {
     let caller = abi(Space, CONTRACT_ID);
+    let identity = caller.identity();
 
-    let identity = caller.identity();
-    log(identity);
-    let identity = caller.identity();
-    log(identity);
     let mut actions: Vec<Action> = Vec::new();
     actions.push(Action::Activate(Activation { system: 1 }));
     actions.push(Action::InstantSend(InstantFleet {
@@ -293,4 +290,32 @@ fn can_commit_and_reveal() {
 
     caller.reveal_actions(identity, secret, actions);
 }
+
+#[test(should_revert)] //  = "CommitmentHashNotMatching"
+fn fails_to_reveal_if_hashes_do_not_match() {
+    let caller = abi(Space, CONTRACT_ID);
+    let identity = caller.identity();
+
+    let mut actions: Vec<Action> = Vec::new();
+    actions.push(Action::Activate(Activation { system: 1 }));
+    actions.push(Action::InstantSend(InstantFleet {
+        from: 1,
+        spaceships: 100,
+        destination: 2,
+    }));
+    actions.push(Action::EventualSend(EventualFleet {
+        from: 1,
+        spaceships: 100,
+        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+    }));
+    let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    let failing_secret = 0x0000000000000000000000000000000000000000000000000000000000000002;
+    let hash = _hash_actions(actions, secret);
+    caller.commit_actions(hash);
+
+    caller.increase_time(COMMIT_PHASE_DURATION.as_seconds());
+
+    caller.reveal_actions(identity, failing_secret, actions);
+}
+
 // ----------------------------------------------------------------------------
