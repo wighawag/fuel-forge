@@ -11,20 +11,20 @@ use std::hash::*;
 // ----------------------------------------------------------------------------
 
 struct Activation {
-    // system: u64,
+    system: u64,
     // TODO add bets
 }
 
 struct InstantFleet {
-    // from: u64,
-    // spaceships: u64,
-    // destination: u64,
+    from: u64,
+    spaceships: u64,
+    destination: u64,
 }
 
 struct EventualFleet {
-    // from: u64,
-    // spaceships: u64,
-    // destinationHash: b256,
+    from: u64,
+    spaceships: u64,
+    destination_hash: b256,
 }
 
 enum Action {
@@ -162,9 +162,9 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
         return;
     }
 
-    let computed_hashh = _hash_actions(actions, secret);
+    let computed_hash = _hash_actions(actions, secret);
 
-    if commitment_hash != computed_hashh {
+    if commitment_hash != computed_hash {
         panic SpaceError::CommitmentHashNotMatching;
     }
 }
@@ -258,13 +258,13 @@ fn should_work() {
         spaceships: 100,
         destination: 2,
     }));
-    actions.push(Action::LongRangeSend(LongRangeFleet {
+    actions.push(Action::EventualSend(EventualFleet {
         from: 1,
         spaceships: 100,
-        destinationHash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
     }));
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
-    let hash = _hashActions(actions, secret);
+    let hash = _hash_actions(actions, secret);
     caller.commit_actions(hash);
 
     caller.reveal_actions(identity, secret, actions);
