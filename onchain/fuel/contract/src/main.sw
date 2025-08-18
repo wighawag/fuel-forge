@@ -88,9 +88,14 @@ pub enum SpaceError {
 // ABI
 // ----------------------------------------------------------------------------
 abi Space {
+    // ------------------------------------------------------------------------
     // TODO remove, used for testing only
+    // ------------------------------------------------------------------------
     fn identity() -> Identity;
 
+    #[storage(write, read)]
+    fn increase_time(seconds: u64);
+    // ------------------------------------------------------------------------
     #[storage(write, read)]
     fn commit_actions(hash: b256);
 
@@ -108,7 +113,14 @@ abi Space {
 // STORAGE
 // ----------------------------------------------------------------------------
 storage {
+    // ------------------------------------------------------------------------
+    // TODO remove, used for testing only
+    // ------------------------------------------------------------------------
+    time_delta: Duration = Duration::seconds(0),
+    // ------------------------------------------------------------------------
     commitments: StorageMap<Identity, Commitment> = StorageMap {},
+    // star_systems: StorageMap<u64, StarSystem> = StorageMap {},
+    // fleets: StorageMap<b256, Fleet> = StorageMap {},
 }
 // ----------------------------------------------------------------------------
 
@@ -128,6 +140,7 @@ const START_TIME: Time = Time::new(0);
 // ----------------------------------------------------------------------------
 // FUNCTIONS
 // ----------------------------------------------------------------------------
+#[storage(read)]
 fn _epoch() -> (u64, bool) {
     let epoch_duration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
     let time = _timestamp();
@@ -139,8 +152,9 @@ fn _epoch() -> (u64, bool) {
     (epoch, commiting)
 }
 
+#[storage(read)]
 fn _timestamp() -> Time {
-    Time::now()
+    Time::now() + storage.time_delta.try_read().unwrap_or(Duration::seconds(0))
 }
 
 fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
@@ -177,11 +191,19 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
 // ----------------------------------------------------------------------------
 
 impl Space for Contract {
+    // ------------------------------------------------------------------------
     // TODO remove, used for testing only
+    // ------------------------------------------------------------------------
     fn identity() -> Identity {
         msg_sender().unwrap()
     }
-
+    #[storage(write, read)]
+    fn increase_time(seconds: u64) {
+        let mut time_delta = storage.time_delta.try_read().unwrap_or(Duration::seconds(0));
+        time_delta += Duration::seconds(seconds);
+        storage.time_delta.write(time_delta);
+    }
+    // ------------------------------------------------------------------------
     #[storage(write, read)]
     fn commit_actions(hash: b256) {
         let (epoch, commiting) = _epoch();
@@ -244,7 +266,7 @@ impl Space for Contract {
 // TESTS
 // ----------------------------------------------------------------------------
 #[test]
-fn should_work() {
+fn can_commit_and_reveal() {
     let caller = abi(Space, CONTRACT_ID);
 
     let identity = caller.identity();
@@ -266,6 +288,8 @@ fn should_work() {
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
     let hash = _hash_actions(actions, secret);
     caller.commit_actions(hash);
+
+    caller.increase_time(COMMIT_PHASE_DURATION.as_seconds());
 
     caller.reveal_actions(identity, secret, actions);
 }
