@@ -2,40 +2,93 @@ contract;
 
 use std::time::*;
 use std::logging::log;
+use std::codec::encode;
+use std::bytes::Bytes;
+use std::hash::*;
 
-enum Destination {
-    Hidden: b256,
-    ClosedBy: u64,
+
+// ----------------------------------------------------------------------------
+// EXTERNAL TYPES
+// ----------------------------------------------------------------------------
+
+struct Activation {
+    system: u64,
+    // TODO add bets
 }
 
-struct Move {
-    from: u64,
-    spaceships: u64,
-    destination: Destination
-}
-
-struct Fleet {
-    id: u64,
+struct InstantFleet {
     from: u64,
     spaceships: u64,
     destination: u64
 }
 
+struct LongRangeFleet {
+    from: u64,
+    spaceships: u64,
+    destinationHash: b256
+}
+
+enum Move {
+    Activate: Activation,
+    InstantSend: InstantFleet,
+    LongRangeSend: LongRangeFleet
+}
+
+
+struct RevealedFleet {
+    epoch: u64,
+    from: u64,
+    spaceships: u64,
+    destination: u64
+}
+
+// ----------------------------------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+// STORAGE TYPES
+// ----------------------------------------------------------------------------
 struct Commitment {
     hash: b256,
     epoch: u64
 }
+// ----------------------------------------------------------------------------
 
+
+// ----------------------------------------------------------------------------
+// EVENT TYPES
+// ----------------------------------------------------------------------------
 struct CommitmentSubmitted {
     account: Identity,
     epoch: u64,
     hash: b256
 }
+// ----------------------------------------------------------------------------
 
-const COMMIT_PHASE_DURATION: Duration = Duration::seconds(22 * 60 * 60); // 22 hour
-const REVEAL_PHASE_DURATION: Duration = Duration::seconds(2 * 60 * 60); // 2 hour
-const START_TIME: Time = Time::new(0);
+// ----------------------------------------------------------------------------
+// ERROR TYPES
+// ----------------------------------------------------------------------------
+#[error_type]
+pub enum SpaceError {
+    #[error(m = "Not Commit Allowed in Reveal Phase")]
+    InRevealPhase: (),
+    #[error(m = "Previous commitment need to be revealed before committing again")]
+    PreviousCommitmentNotRevealed: (),
+    #[error(m = "No Reveal Allowed in Commitment Phase")]
+    InCommitmentPhase: (),
+    #[error(m = "There is nothing to reveal")]
+    NothingToReveal: (),
+    #[error(m = "Invalid epoch, you can only reveal moves in the current epoch")]
+    InvalidEpoch: (),
+    #[error(m = "Hash revealed does not match the one computed from moves and secret")]
+    CommitmentHashNotMatching: ()
+}
+// ----------------------------------------------------------------------------
 
+
+// ----------------------------------------------------------------------------
+// ABI
+// ----------------------------------------------------------------------------
 abi Space {
     #[storage(write,read)]
     fn commit_moves(hash: b256);
@@ -46,11 +99,34 @@ abi Space {
     // #[storage(write, read)]
     // fn reveal_arrivals(Fleet[]);
 }
+// ----------------------------------------------------------------------------
 
+
+
+// ----------------------------------------------------------------------------
+// STORAGE
+// ----------------------------------------------------------------------------
 storage {
     commitments: StorageMap<Identity, Commitment> = StorageMap {},
 }
+// ----------------------------------------------------------------------------
 
+
+
+// ----------------------------------------------------------------------------
+// CONSTANTS AND CONFIGURABLES
+// ----------------------------------------------------------------------------
+
+const COMMIT_PHASE_DURATION: Duration = Duration::seconds(22 * 60 * 60); // 22 hour
+const REVEAL_PHASE_DURATION: Duration = Duration::seconds(2 * 60 * 60); // 2 hour
+const START_TIME: Time = Time::new(0);
+
+// ----------------------------------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+// FUNCTIONS
+// ----------------------------------------------------------------------------
 fn _epoch() -> (u64, bool) {
 
     let epochDuration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
@@ -69,22 +145,31 @@ fn _timestamp() -> Time {
 }
 
 fn _checkHash(hashRevealed: b256, moves: Vec<Move>, secret: b256) {
-    
-}
 
-#[error_type]
-pub enum SpaceError {
-    #[error(m = "Not Commit Allowed in Reveal Phase")]
-    InRevealPhase: (),
-    #[error(m = "Previous commitment need to be revealed before committing again")]
-    PreviousCommitmentNotRevealed: (),
-    #[error(m = "No Reveal Allowed in Commitment Phase")]
-    InCommitmentPhase: (),
-    #[error(m = "There is nothing to reveal")]
-    NothingToReveal: (),
-    #[error(m = "Invalid epoch, you can only reveal moves in the current epoch")]
-    InvalidEpoch: ()
+     // TODO remove
+    if hashRevealed == 0x0000000000000000000000000000000000000000000000000000000000000000 {
+        return;
+    }
+    
+    let computedHash = sha256({
+        let mut bytes = Bytes::new();
+        bytes.append(Bytes::from(encode(hashRevealed)));
+        bytes.append(Bytes::from(encode(moves)));
+        bytes.append(Bytes::from(encode(secret)));
+        bytes
+    });
+
+    if hashRevealed != computedHash {
+        panic SpaceError::CommitmentHashNotMatching;
+    }
 }
+// ----------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------
+// IMPLEMENTATION
+// ----------------------------------------------------------------------------
 
 impl Space for Contract {
     #[storage(write, read)]
@@ -149,9 +234,15 @@ impl Space for Contract {
     }
     
 }
+// ----------------------------------------------------------------------------
 
+
+// ----------------------------------------------------------------------------
+// TESTS
+// ----------------------------------------------------------------------------
 #[test]
 fn should_work() {
     let contract_instance = abi(Space, CONTRACT_ID);
   
 }
+// ----------------------------------------------------------------------------
