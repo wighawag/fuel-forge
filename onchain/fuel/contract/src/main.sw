@@ -11,20 +11,20 @@ use std::hash::*;
 // ----------------------------------------------------------------------------
 
 struct Activation {
-    system: u64,
+    // system: u64,
     // TODO add bets
 }
 
 struct InstantFleet {
-    from: u64,
-    spaceships: u64,
-    destination: u64,
+    // from: u64,
+    // spaceships: u64,
+    // destination: u64,
 }
 
 struct LongRangeFleet {
-    from: u64,
-    spaceships: u64,
-    destinationHash: b256,
+    // from: u64,
+    // spaceships: u64,
+    // destinationHash: b256,
 }
 
 enum Action {
@@ -33,12 +33,12 @@ enum Action {
     LongRangeSend: LongRangeFleet,
 }
 
-struct RevealedFleet {
-    epoch: u64,
-    from: u64,
-    spaceships: u64,
-    destination: u64,
-}
+// struct RevealedFleet {
+//     epoch: u64,
+//     from: u64,
+//     spaceships: u64,
+//     destination: u64,
+// }
 
 // ----------------------------------------------------------------------------
 
@@ -129,13 +129,13 @@ const START_TIME: Time = Time::new(0);
 // FUNCTIONS
 // ----------------------------------------------------------------------------
 fn _epoch() -> (u64, bool) {
-    let epochDuration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
+    let epoch_duration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
     let time = _timestamp();
-    let timePassed: Duration = time.duration_since(START_TIME).unwrap();
+    let time_passed: Duration = time.duration_since(START_TIME).unwrap();
 
     // epoch start at 2, this make the hypothetical previous reveal phase's epoch to be 1
-    let epoch = timePassed.as_seconds() / (epochDuration.as_seconds()) + 2;
-    let commiting = timePassed.as_seconds() - ((epoch - 2) * epochDuration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
+    let epoch = time_passed.as_seconds() / (epoch_duration.as_seconds()) + 2;
+    let commiting = time_passed.as_seconds() - ((epoch - 2) * epoch_duration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
     (epoch, commiting)
 }
 
@@ -143,7 +143,7 @@ fn _timestamp() -> Time {
     Time::now()
 }
 
-fn _hashActions(actions: Vec<Action>, secret: b256) -> b256 {
+fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
     sha256(
         {
             let mut bytes = Bytes::new();
@@ -155,16 +155,16 @@ fn _hashActions(actions: Vec<Action>, secret: b256) -> b256 {
         },
     )
 }
-fn _checkHash(commitmentHash: b256, actions: Vec<Action>, secret: b256) {
+fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     // TODO reaction
-    if commitmentHash == 0x0000000000000000000000000000000000000000000000000000000000000000
+    if commitment_hash == 0x0000000000000000000000000000000000000000000000000000000000000000
     {
         return;
     }
 
-    let computedHash = _hashActions(actions, secret);
+    let computed_hashh = _hash_actions(actions, secret);
 
-    if commitmentHash != computedHash {
+    if commitment_hash != computed_hashh {
         panic SpaceError::CommitmentHashNotMatching;
     }
 }
@@ -230,7 +230,7 @@ impl Space for Contract {
         }
 
         let hashRevealed = commitment.hash;
-        _checkHash(hashRevealed, actions, secret);
+        _check_hash(hashRevealed, actions, secret);
 
         // TODO process actions
         commitment.epoch = 0; // used
