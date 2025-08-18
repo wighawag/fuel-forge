@@ -40,8 +40,8 @@ abi Space {
     #[storage(write,read)]
     fn commit_moves(hash: b256);
 
-    // #[storage(write, read)]
-    // fn reveal_moves(secret: b256, Move[] moves);
+    #[storage(write, read)]
+    fn reveal_moves(account: Identity, secret: b256, moves: Vec<Move>);
 
     // #[storage(write, read)]
     // fn reveal_arrivals(Fleet[]);
@@ -68,13 +68,22 @@ fn _timestamp() -> Time {
     Time::now()
 }
 
+fn _checkHash(hashRevealed: b256, moves: Vec<Move>, secret: b256) {
+    
+}
 
 #[error_type]
 pub enum SpaceError {
     #[error(m = "Not Commit Allowed in Reveal Phase")]
     InRevealPhase: (),
     #[error(m = "Previous commitment need to be revealed before committing again")]
-    PreviousCommitmentNotRevealed: ()
+    PreviousCommitmentNotRevealed: (),
+    #[error(m = "No Reveal Allowed in Commitment Phase")]
+    InCommitmentPhase: (),
+    #[error(m = "There is nothing to reveal")]
+    NothingToReveal: (),
+    #[error(m = "Invalid epoch, you can only reveal moves in the current epoch")]
+    InvalidEpoch: ()
 }
 
 impl Space for Contract {
@@ -109,7 +118,35 @@ impl Space for Contract {
         });
     }
 
+    #[storage(write, read)]
+    fn reveal_moves(account: Identity, secret: b256, moves: Vec<Move>) {
+        let (epoch, commiting) = _epoch();
+        if commiting {
+            panic SpaceError::InCommitmentPhase;
+        }
+         let mut commitment = storage.commitments.get(account).try_read()
+            .unwrap_or(Commitment {
+                hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
+                epoch: 0
+            });
 
+        if commitment.epoch == 0 {
+            panic SpaceError::NothingToReveal;
+        }
+        if commitment.epoch != epoch {
+            panic SpaceError::InvalidEpoch;
+        }
+
+        let hashRevealed = commitment.hash;
+        _checkHash(hashRevealed, moves, secret);
+        
+
+        // TODO process moves
+        
+
+        commitment.epoch = 0; // used
+        storage.commitments.insert(account, commitment);
+    }
     
 }
 
