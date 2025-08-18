@@ -229,8 +229,8 @@ impl Space for Contract {
             panic SpaceError::InvalidEpoch;
         }
 
-        let hashRevealed = commitment.hash;
-        _check_hash(hashRevealed, actions, secret);
+        let hash_revealed = commitment.hash;
+        _check_hash(hash_revealed, actions, secret);
 
         // TODO process actions
         commitment.epoch = 0; // used
