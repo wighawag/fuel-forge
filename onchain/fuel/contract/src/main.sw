@@ -9,7 +9,6 @@ use std::hash::*;
 // ----------------------------------------------------------------------------
 // EXTERNAL TYPES
 // ----------------------------------------------------------------------------
-
 struct Activation {
     system: u64,
     // TODO add bets
@@ -39,19 +38,7 @@ enum Action {
 //     spaceships: u64,
 //     destination: u64,
 // }
-
 // ----------------------------------------------------------------------------
-
-
-// ----------------------------------------------------------------------------
-// STORAGE TYPES
-// ----------------------------------------------------------------------------
-struct Commitment {
-    hash: b256,
-    epoch: u64,
-}
-// ----------------------------------------------------------------------------
-
 
 // ----------------------------------------------------------------------------
 // EVENT TYPES
@@ -80,9 +67,12 @@ pub enum SpaceError {
     InvalidEpoch: (),
     #[error(m = "Hash revealed does not match the one computed from actions and secret")]
     CommitmentHashNotMatching: (),
+    #[error(m = "Cannot Activate Star System Owned By Someone Else")]
+    CannotActivateSystemOwnedBySomeoneElse: (),
+    #[error(m = "System cannot be activated if already so")]
+    AlreadyActivated: (),
 }
 // ----------------------------------------------------------------------------
-
 
 // ----------------------------------------------------------------------------
 // ABI
@@ -107,7 +97,21 @@ abi Space {
 }
 // ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// STORAGE TYPES
+// ----------------------------------------------------------------------------
+struct Commitment {
+    hash: b256,
+    epoch: u64,
+}
 
+struct StarSystemState {
+    owner: Option<Identity>,
+    activated: bool,
+    spaceships: u64,
+    lastUpdate: Time,
+}
+// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 // STORAGE
@@ -119,26 +123,21 @@ storage {
     time_delta: Duration = Duration::seconds(0),
     // ------------------------------------------------------------------------
     commitments: StorageMap<Identity, Commitment> = StorageMap {},
-    // star_systems: StorageMap<u64, StarSystem> = StorageMap {},
+    star_system_states: StorageMap<u64, StarSystemState> = StorageMap {},
     // fleets: StorageMap<b256, Fleet> = StorageMap {},
 }
 // ----------------------------------------------------------------------------
 
-
-
 // ----------------------------------------------------------------------------
 // CONSTANTS AND CONFIGURABLES
 // ----------------------------------------------------------------------------
-
 const COMMIT_PHASE_DURATION: Duration = Duration::seconds(22 * 60 * 60); // 22 hour
 const REVEAL_PHASE_DURATION: Duration = Duration::seconds(2 * 60 * 60); // 2 hour
 const START_TIME: Time = Time::new(0);
-
 // ----------------------------------------------------------------------------
 
-
 // ----------------------------------------------------------------------------
-// FUNCTIONS
+// INTERNAL FUNCTIONS
 // ----------------------------------------------------------------------------
 #[storage(read)]
 fn _epoch() -> (u64, bool) {
@@ -184,12 +183,9 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
 }
 // ----------------------------------------------------------------------------
 
-
-
 // ----------------------------------------------------------------------------
-// IMPLEMENTATION
+// ABI IMPLEMENTATION
 // ----------------------------------------------------------------------------
-
 impl Space for Contract {
     // ------------------------------------------------------------------------
     // TODO remove, used for testing only
@@ -254,7 +250,44 @@ impl Space for Contract {
         let hash_revealed = commitment.hash;
         _check_hash(hash_revealed, actions, secret);
 
-        // TODO process actions
+        for action in actions.iter() {
+            match action {
+                Action::Activate(activation) => {
+                    let system = activation.system;
+                    let mut star_system_state = storage.star_system_states.get(system).try_read().unwrap_or(StarSystemState {
+                        owner: None,
+                        activated: false,
+                        spaceships: 0,
+                        lastUpdate: _timestamp()
+                    });
+
+                    if star_system_state.activated {
+                        panic SpaceError::AlreadyActivated;
+                    }
+
+                    match star_system_state.owner {
+                        Option::None => {
+
+                        },
+                        Option::Some(owner) => {
+                            if owner != account {
+                                panic SpaceError::CannotActivateSystemOwnedBySomeoneElse
+                            }
+                        }
+                    }
+
+                    star_system_state.spaceships += 100000; // TODO add more logic
+                    storage.star_system_states.insert(system, star_system_state);
+                },
+                Action::InstantSend(fleet) => {
+                // TODO process instant send
+},
+                Action::EventualSend(fleet) => {
+                // TODO process eventual send
+},
+            }
+        }
+
         commitment.epoch = 0; // used
         storage.commitments.insert(account, commitment);
     }
@@ -341,5 +374,4 @@ fn fails_to_reveal_if_commit_phase() {
 
     caller.reveal_actions(identity, secret, actions);
 }
-
 // ----------------------------------------------------------------------------
