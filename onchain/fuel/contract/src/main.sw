@@ -318,4 +318,28 @@ fn fails_to_reveal_if_hashes_do_not_match() {
     caller.reveal_actions(identity, failing_secret, actions);
 }
 
+#[test(should_revert)] //  = "CommitmentHashNotMatching"
+fn fails_to_reveal_if_commit_phase() {
+    let caller = abi(Space, CONTRACT_ID);
+    let identity = caller.identity();
+
+    let mut actions: Vec<Action> = Vec::new();
+    actions.push(Action::Activate(Activation { system: 1 }));
+    actions.push(Action::InstantSend(InstantFleet {
+        from: 1,
+        spaceships: 100,
+        destination: 2,
+    }));
+    actions.push(Action::EventualSend(EventualFleet {
+        from: 1,
+        spaceships: 100,
+        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+    }));
+    let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
+    let hash = _hash_actions(actions, secret);
+    caller.commit_actions(hash);
+
+    caller.reveal_actions(identity, secret, actions);
+}
+
 // ----------------------------------------------------------------------------
