@@ -1,4 +1,4 @@
-use fuels::{prelude::*, types::ContractId};
+use fuels::{prelude::*, types::ContractId, types::Bits256};
 
 // Load abi from json
 abigen!(Contract(
@@ -36,8 +36,15 @@ async fn get_contract_instance() -> (Space<WalletUnlocked>, ContractId) {
 }
 
 #[tokio::test]
-async fn can_get_contract_id() {
-    let (_instance, _id) = get_contract_instance().await;
+async fn can_commit_actions() {
+    let (instance, _id) = get_contract_instance().await;
 
-    // Now you have an instance of your contract you can use to test each function
+     let result = instance
+        .methods()
+        .commit_actions(Bits256::from_hex_str("0x0000000000000000000000000000000000000000000000000000000000000000").unwrap())
+        .call()
+        .await
+        .unwrap();
+ 
+ 
 }
