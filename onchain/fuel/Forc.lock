@@ -1,7 +1,7 @@
 [[package]]
 name = "std"
-version = "0.68.7"
-source = "registry+std?0.68.7#QmXtvuy4DJqoVfTmMSygtwh5Zx9JvWsKfx2p83pXEGnZrC!"
+version = "0.69.1"
+source = "registry+std?0.69.1#QmbPunScay4xpfHKpxQ71dFKXSiyJuPP8P8YhgX5Dkmzm9!"
 
 [[package]]
 name = "test-contract"
