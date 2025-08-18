@@ -28,7 +28,7 @@ struct LongRangeFleet {
     destinationHash: b256
 }
 
-enum Move {
+enum Action {
     Activate: Activation,
     InstantSend: InstantFleet,
     LongRangeSend: LongRangeFleet
@@ -78,9 +78,9 @@ pub enum SpaceError {
     InCommitmentPhase: (),
     #[error(m = "There is nothing to reveal")]
     NothingToReveal: (),
-    #[error(m = "Invalid epoch, you can only reveal moves in the current epoch")]
+    #[error(m = "Invalid epoch, you can only reveal actions in the current epoch")]
     InvalidEpoch: (),
-    #[error(m = "Hash revealed does not match the one computed from moves and secret")]
+    #[error(m = "Hash revealed does not match the one computed from actions and secret")]
     CommitmentHashNotMatching: ()
 }
 // ----------------------------------------------------------------------------
@@ -91,10 +91,10 @@ pub enum SpaceError {
 // ----------------------------------------------------------------------------
 abi Space {
     #[storage(write,read)]
-    fn commit_moves(hash: b256);
+    fn commit_actions(hash: b256);
 
     #[storage(write, read)]
-    fn reveal_moves(account: Identity, secret: b256, moves: Vec<Move>);
+    fn reveal_actions(account: Identity, secret: b256, actions: Vec<Action>);
 
     // #[storage(write, read)]
     // fn reveal_arrivals(Fleet[]);
@@ -144,9 +144,9 @@ fn _timestamp() -> Time {
     Time::now()
 }
 
-fn _checkHash(hashRevealed: b256, moves: Vec<Move>, secret: b256) {
+fn _checkHash(hashRevealed: b256, actions: Vec<Action>, secret: b256) {
 
-     // TODO remove
+     // TODO reaction
     if hashRevealed == 0x0000000000000000000000000000000000000000000000000000000000000000 {
         return;
     }
@@ -154,7 +154,7 @@ fn _checkHash(hashRevealed: b256, moves: Vec<Move>, secret: b256) {
     let computedHash = sha256({
         let mut bytes = Bytes::new();
         bytes.append(Bytes::from(encode(hashRevealed)));
-        bytes.append(Bytes::from(encode(moves)));
+        bytes.append(Bytes::from(encode(actions)));
         bytes.append(Bytes::from(encode(secret)));
         bytes
     });
@@ -173,7 +173,7 @@ fn _checkHash(hashRevealed: b256, moves: Vec<Move>, secret: b256) {
 
 impl Space for Contract {
     #[storage(write, read)]
-    fn commit_moves(hash: b256)  {
+    fn commit_actions(hash: b256)  {
 
         let (epoch, commiting) = _epoch();
 
@@ -204,7 +204,7 @@ impl Space for Contract {
     }
 
     #[storage(write, read)]
-    fn reveal_moves(account: Identity, secret: b256, moves: Vec<Move>) {
+    fn reveal_actions(account: Identity, secret: b256, actions: Vec<Action>) {
         let (epoch, commiting) = _epoch();
         if commiting {
             panic SpaceError::InCommitmentPhase;
@@ -223,10 +223,10 @@ impl Space for Contract {
         }
 
         let hashRevealed = commitment.hash;
-        _checkHash(hashRevealed, moves, secret);
+        _checkHash(hashRevealed, actions, secret);
         
 
-        // TODO process moves
+        // TODO process actions
         
 
         commitment.epoch = 0; // used
