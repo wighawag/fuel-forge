@@ -129,4 +129,6 @@ function main() {
 }
 
 // Run the script
+console.log("Starting import fix...");
 main();
+console.log(`------------------------------`);

@@ -45,6 +45,18 @@ async fn can_commit_actions() {
         .call()
         .await
         .unwrap();
- 
- 
+
 }
+
+// #[tokio::test]
+// async fn can_reveal_actions() {
+//     let (instance, _id) = get_contract_instance().await;
+
+//      let result = instance
+//         .methods()
+//         .commit_actions(Bits256::from_hex_str("0x0000000000000000000000000000000000000000000000000000000000000000").unwrap())
+//         .call()
+//         .await
+//         .unwrap();
+
+// }

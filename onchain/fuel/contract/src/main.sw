@@ -21,7 +21,7 @@ struct InstantFleet {
     // destination: u64,
 }
 
-struct LongRangeFleet {
+struct EventualFleet {
     // from: u64,
     // spaceships: u64,
     // destinationHash: b256,
@@ -30,7 +30,7 @@ struct LongRangeFleet {
 enum Action {
     Activate: Activation,
     InstantSend: InstantFleet,
-    LongRangeSend: LongRangeFleet,
+    EventualSend: EventualFleet,
 }
 
 // struct RevealedFleet {
