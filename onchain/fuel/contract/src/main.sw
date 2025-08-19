@@ -184,8 +184,30 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
 
 
 fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
+    let time_passed = time.duration_since(star_system_state.last_update).unwrap_or(Duration::seconds(0));
+    if (time_passed.as_seconds() == 0) {
+        return;
+    }
     star_system_state.last_update = time;
-    // TODO
+    if star_system_state.activated {
+        star_system_state.spaceships += time_passed.as_seconds(); // 1 spaceship per seconds // TODO production
+        // TODO overflow ?
+
+        if star_system_state.spaceships > 600000 {
+            star_system_state.spaceships = 600000; // TODO max production
+        }
+
+        // TODO (not necessary) calculate the time_passed based on the number of spaceships produced to ensure the number cannot be frozen by constantly updating the planet
+    } else {
+        let destruction = time_passed.as_seconds() / 2; // 1 spaceship per 2 seconds // TODO harshness
+        if star_system_state.spaceships < destruction {
+            star_system_state.spaceships = 0;
+        } else {
+            star_system_state.spaceships -= destruction;
+        }
+        
+        // TODO calculate the time_passed based on the number of spaceships removed to ensure the number cannot be frozen by constantly updating the planet
+    }
 }
 // ----------------------------------------------------------------------------
 
