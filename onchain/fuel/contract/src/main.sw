@@ -14,22 +14,21 @@ struct Activation {
     // TODO add bets
 }
 
-struct InstantFleet {
-    from: u64,
-    spaceships: u64,
-    destination: u64,
+enum Destination {
+    Eventual: b256, // hash of the destination
+    Known: u64, // id of the destination
 }
 
-struct EventualFleet {
+struct Fleet {
     from: u64,
     spaceships: u64,
-    destination_hash: b256,
+    destination: Destination,
 }
+
 
 enum Action {
     Activate: Activation,
-    InstantSend: InstantFleet,
-    EventualSend: EventualFleet,
+    SendFleet: Fleet
 }
 
 // struct RevealedFleet {
@@ -71,6 +70,10 @@ pub enum SpaceError {
     CannotActivateSystemOwnedBySomeoneElse: (),
     #[error(m = "System cannot be activated if already so")]
     AlreadyActivated: (),
+    #[error(m = "Only Owner Can Perfrom Action From Star System")]
+    NotOwner: (),
+    #[error(m = "Not enough spaceships to send the fleet")]
+    NotEnoughSpaceships: (),
 }
 // ----------------------------------------------------------------------------
 
@@ -140,19 +143,19 @@ const START_TIME: Time = Time::new(0);
 // INTERNAL FUNCTIONS
 // ----------------------------------------------------------------------------
 #[storage(read)]
-fn _epoch() -> (u64, bool) {
+fn _epoch() -> (u64, bool, Time) {
     let epoch_duration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
-    let time = _timestamp();
+    let time = _time();
     let time_passed: Duration = time.duration_since(START_TIME).unwrap();
 
     // minimum epoch is 2, this make the minimal hypothetical previous reveal phase's epoch to be non-zero
     let epoch = time_passed.as_seconds() / (epoch_duration.as_seconds()) + 2;
     let commiting = time_passed.as_seconds() - ((epoch - 2) * epoch_duration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
-    (epoch, commiting)
+    (epoch, commiting, time)
 }
 
 #[storage(read)]
-fn _timestamp() -> Time {
+fn _time() -> Time {
     Time::now() + storage.time_delta.try_read().unwrap_or(Duration::seconds(0))
 }
 
@@ -182,6 +185,19 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     }
 }
 
+#[storage(read)]
+fn _get_star_system_state(system: u64, time: Time) -> StarSystemState {
+    // TODO use match to not update when not existing
+    let mut star_system_state = storage.star_system_states.get(system).try_read().unwrap_or(StarSystemState {
+        owner: Option::None,
+        activated: false,
+        spaceships: 0,
+        last_update: _time(),
+    });
+    _update_star_system(star_system_state, time);
+    star_system_state
+}
+
 
 fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
     let time_passed = time.duration_since(star_system_state.last_update).unwrap_or(Duration::seconds(0));
@@ -202,12 +218,23 @@ fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
         let destruction = time_passed.as_seconds() / 2; // 1 spaceship per 2 seconds // TODO harshness
         if star_system_state.spaceships < destruction {
             star_system_state.spaceships = 0;
+            star_system_state.owner = Option::None;
         } else {
             star_system_state.spaceships -= destruction;
         }
         
         // TODO calculate the time_passed based on the number of spaceships removed to ensure the number cannot be frozen by constantly updating the planet
     }
+}
+
+
+fn _resolve_fleet_arrival(
+    fleet: Fleet,
+    destination: u64
+) {
+    // TODO implement
+    // This function should be called when the fleet arrives at its destination
+    // It should update the state of the star system and the fleet accordingly
 }
 // ----------------------------------------------------------------------------
 
@@ -230,7 +257,7 @@ impl Space for Contract {
     // ------------------------------------------------------------------------
     #[storage(write, read)]
     fn commit_actions(hash: b256) {
-        let (epoch, commiting) = _epoch();
+        let (epoch, commiting, _time) = _epoch();
 
         if !commiting {
             panic SpaceError::InRevealPhase;
@@ -259,7 +286,7 @@ impl Space for Contract {
 
     #[storage(write, read)]
     fn reveal_actions(account: Identity, secret: b256, actions: Vec<Action>) {
-        let (epoch, commiting) = _epoch();
+        let (epoch, commiting, time) = _epoch();
         if commiting {
             panic SpaceError::InCommitmentPhase;
         }
@@ -282,12 +309,8 @@ impl Space for Contract {
             match action {
                 Action::Activate(activation) => {
                     let system = activation.system;
-                    let mut star_system_state = storage.star_system_states.get(system).try_read().unwrap_or(StarSystemState {
-                        owner: None,
-                        activated: false,
-                        spaceships: 0,
-                        last_update: _timestamp()
-                    });
+                    let mut star_system_state = _get_star_system_state(system, time);
+                    
 
                     if star_system_state.activated {
                         panic SpaceError::AlreadyActivated;
@@ -304,19 +327,47 @@ impl Space for Contract {
                         }
                     }
 
-                    _update_star_system(star_system_state, _timestamp());
+                    
  
                     star_system_state.activated = true;
                     star_system_state.owner = Option::Some(account);
                     star_system_state.spaceships += 100000; // TODO add more logic
                     storage.star_system_states.insert(system, star_system_state);
                 },
-                Action::InstantSend(fleet) => {
-                // TODO process instant send
-},
-                Action::EventualSend(fleet) => {
-                // TODO process eventual send
-},
+                Action::SendFleet(fleet) => {
+                    let system = fleet.from;
+                    let mut star_system_state = _get_star_system_state(system, time);
+
+
+                    match star_system_state.owner {
+                        Option::None => {
+                            panic SpaceError::NotOwner
+                        },
+                        Option::Some(owner) => {
+                            if owner != account {
+                                panic SpaceError::NotOwner
+                            }
+                        }
+                    }
+ 
+                    if fleet.spaceships > star_system_state.spaceships {
+                        panic SpaceError::NotEnoughSpaceships;
+                    }
+
+                    star_system_state.spaceships -= fleet.spaceships;
+                    storage.star_system_states.insert(system, star_system_state);
+
+                    // TODO events
+
+                    match fleet.destination {
+                        Destination::Known(destination) => {
+                            _resolve_fleet_arrival(fleet, destination);
+                        },
+                        Destination::Eventual(_) => {
+
+                        },
+                    }
+                },
             }
         }
 
@@ -337,15 +388,15 @@ fn can_commit_and_reveal() {
 
     let mut actions: Vec<Action> = Vec::new();
     actions.push(Action::Activate(Activation { system: 1 }));
-    actions.push(Action::InstantSend(InstantFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination: 2,
+        destination: Destination::Known(2),
     }));
-    actions.push(Action::EventualSend(EventualFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+        destination: Destination::Eventual(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef),
     }));
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
     let hash = _hash_actions(actions, secret);
@@ -363,15 +414,15 @@ fn fails_to_reveal_if_hashes_do_not_match() {
 
     let mut actions: Vec<Action> = Vec::new();
     actions.push(Action::Activate(Activation { system: 1 }));
-    actions.push(Action::InstantSend(InstantFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination: 2,
+        destination: Destination::Known(2),
     }));
-    actions.push(Action::EventualSend(EventualFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+        destination: Destination::Eventual(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef),
     }));
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
     let failing_secret = 0x0000000000000000000000000000000000000000000000000000000000000002;
@@ -390,15 +441,15 @@ fn fails_to_reveal_if_commit_phase() {
 
     let mut actions: Vec<Action> = Vec::new();
     actions.push(Action::Activate(Activation { system: 1 }));
-    actions.push(Action::InstantSend(InstantFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination: 2,
+        destination: Destination::Known(2),
     }));
-    actions.push(Action::EventualSend(EventualFleet {
+    actions.push(Action::SendFleet(Fleet {
         from: 1,
         spaceships: 100,
-        destination_hash: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef,
+        destination: Destination::Eventual(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef),
     }));
     let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
     let hash = _hash_actions(actions, secret);
