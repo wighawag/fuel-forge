@@ -109,7 +109,7 @@ struct StarSystemState {
     owner: Option<Identity>,
     activated: bool,
     spaceships: u64,
-    lastUpdate: Time,
+    last_update: Time,
 }
 // ----------------------------------------------------------------------------
 
@@ -145,7 +145,7 @@ fn _epoch() -> (u64, bool) {
     let time = _timestamp();
     let time_passed: Duration = time.duration_since(START_TIME).unwrap();
 
-    // epoch start at 2, this make the hypothetical previous reveal phase's epoch to be 1
+    // minimum epoch is 2, this make the minimal hypothetical previous reveal phase's epoch to be non-zero
     let epoch = time_passed.as_seconds() / (epoch_duration.as_seconds()) + 2;
     let commiting = time_passed.as_seconds() - ((epoch - 2) * epoch_duration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
     (epoch, commiting)
@@ -180,6 +180,12 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     if commitment_hash != computed_hash {
         panic SpaceError::CommitmentHashNotMatching;
     }
+}
+
+
+fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
+    star_system_state.last_update = time;
+    // TODO
 }
 // ----------------------------------------------------------------------------
 
@@ -258,7 +264,7 @@ impl Space for Contract {
                         owner: None,
                         activated: false,
                         spaceships: 0,
-                        lastUpdate: _timestamp()
+                        last_update: _timestamp()
                     });
 
                     if star_system_state.activated {
@@ -276,6 +282,10 @@ impl Space for Contract {
                         }
                     }
 
+                    _update_star_system(star_system_state, _timestamp());
+ 
+                    star_system_state.activated = true;
+                    star_system_state.owner = Option::Some(account);
                     star_system_state.spaceships += 100000; // TODO add more logic
                     storage.star_system_states.insert(system, star_system_state);
                 },
