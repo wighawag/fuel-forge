@@ -1,19 +1,39 @@
 <script lang="ts">
-	import Button from '$lib/ui/generic/Button.svelte';
-	import type { BN } from 'fuels';
-	import { Provider, Wallet, WalletUnlocked } from 'fuels';
-	import { PUBLIC_FUEL_NODE_URL } from '$env/static/public';
+	import ConnectionFlow from '$lib/connection/ConnectionFlow.svelte';
+	import TopBar from '$lib/ui/structure/TopBar.svelte';
+	import PixiCanvas from '$lib/render/PixiCanvas.svelte';
 
-	let error: string | undefined = $state(undefined);
-
-	async function increment() {
-		console.log('Incrementing...');
-		const provider = new Provider(PUBLIC_FUEL_NODE_URL);
-		const wallet: WalletUnlocked = Wallet.fromPrivateKey('0x', provider);
-
-		const balance: BN = await wallet.getBalance(await provider.getBaseAssetId());
-		console.log('Current balance:', balance.toString());
-	}
+	// TODO:
+	import { viewState } from '$lib/view';
 </script>
 
-<Button onclick={increment}>increment</Button>
+<main>
+	<div class="pointer-events-auto">
+		<TopBar />
+	</div>
+</main>
+
+<ConnectionFlow />
+
+<div class="canvas">
+	<PixiCanvas />
+</div>
+
+<style>
+	main {
+		position: absolute;
+		z-index: 1;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+
+	.canvas {
+		pointer-events: none;
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		width: 100%;
+	}
+</style>

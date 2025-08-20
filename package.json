@@ -23,7 +23,7 @@
     "---------------------- DEV ----------------------": "",
     "web:dev": "ldenv pnpm --filter ./web dev",
     "web:build": "ldenv pnpm --filter ./web build",
-    "onchain:dev": "ldenv pnpm --filter ./onchain/fuel dev",
+    "onchain:dev": "killall fuel-core; ldenv pnpm --filter ./onchain/fuel dev",
     "onchain:typescript:watch": "ldenv pnpm --filter ./onchain/fuel typescript:watch",
     "---------------------- BUILD ----------------------": "",
     "build": "pnpm build",

@@ -32,9 +32,17 @@
 		"lint": "prettier --check ."
 	},
 	"dependencies": {
-		"bits-ui": "^2.9.2",
+		"@etherplay/connect": "^0.0.27",
+		"@lucide/svelte": "^0.511.0",
+		"@pixi/devtools": "^2.0.1",
+		"bits-ui": "^2.2.0",
 		"clsx": "^2.1.1",
+		"eip-1193": "^0.6.3",
 		"fuels": "^0.101.3",
-		"tw-animate-css": "^1.3.6"
+		"pixi-viewport": "^6.0.3",
+		"pixi.js": "^8.9.2",
+		"twgl.js": "^6.1.1",
+		"tw-animate-css": "^1.3.6",
+		"viem": "^2.34.0"
 	}
 }
