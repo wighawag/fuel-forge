@@ -20,6 +20,7 @@ enum Destination {
 }
 
 struct Fleet {
+    id: b256, // id of the fleet
     from: u64,
     spaceships: u64,
     destination: Destination,
@@ -114,6 +115,16 @@ struct StarSystemState {
     spaceships: u64,
     last_update: Time,
 }
+
+
+struct FleetState {
+    owner: Identity,
+    from: u64,
+    spaceships: u64,
+    launch_epoch: u64,
+    destination: Destination,
+    // delay: u64, // TODO hash it:
+}
 // ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
@@ -127,7 +138,7 @@ storage {
     // ------------------------------------------------------------------------
     commitments: StorageMap<Identity, Commitment> = StorageMap {},
     star_system_states: StorageMap<u64, StarSystemState> = StorageMap {},
-    // fleets: StorageMap<b256, Fleet> = StorageMap {},
+    fleets: StorageMap<b256, FleetState> = StorageMap {},
 }
 // ----------------------------------------------------------------------------
 
@@ -186,7 +197,7 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
 }
 
 #[storage(read)]
-fn _get_star_system_state(system: u64, time: Time) -> StarSystemState {
+fn _get_updated_star_system_state(system: u64, time: Time) -> StarSystemState {
     // TODO use match to not update when not existing
     let mut star_system_state = storage.star_system_states.get(system).try_read().unwrap_or(StarSystemState {
         owner: Option::None,
@@ -227,11 +238,21 @@ fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
     }
 }
 
-
+#[storage(write, read)]
 fn _resolve_fleet_arrival(
-    fleet: Fleet,
-    destination: u64
+    fleet: FleetState,
+    destination: u64,
+    time: Time
 ) {
+    let mut destination_star_system_state = _get_updated_star_system_state(destination, time);
+
+    if destination_star_system_state.owner.is_none() {
+        
+    } else if destination_star_system_state.owner.unwrap() == msg_sender().unwrap() {
+        // TODO add logic to merge fleets
+    } else {
+        // TODO add logic to attack
+    }
     // TODO implement
     // This function should be called when the fleet arrives at its destination
     // It should update the state of the star system and the fleet accordingly
@@ -309,11 +330,12 @@ impl Space for Contract {
             match action {
                 Action::Activate(activation) => {
                     let system = activation.system;
-                    let mut star_system_state = _get_star_system_state(system, time);
+                    let mut star_system_state = _get_updated_star_system_state(system, time);
                     
 
                     if star_system_state.activated {
-                        panic SpaceError::AlreadyActivated;
+                        // panic SpaceError::AlreadyActivated;
+                        continue; // We cannot error out in reveal phase, so we just skip the fleet
                     }
 
                     match star_system_state.owner {
@@ -322,7 +344,8 @@ impl Space for Contract {
                         },
                         Option::Some(owner) => {
                             if owner != account {
-                                panic SpaceError::CannotActivateSystemOwnedBySomeoneElse
+                                // panic SpaceError::CannotActivateSystemOwnedBySomeoneElse
+                                continue; // We cannot error out in reveal phase, so we just skip the fleet
                             }
                         }
                     }
@@ -331,27 +354,46 @@ impl Space for Contract {
  
                     star_system_state.activated = true;
                     star_system_state.owner = Option::Some(account);
-                    star_system_state.spaceships += 100000; // TODO add more logic
+                    star_system_state.spaceships += 100000; // TODO ACTIVATION_SPACESHIPS
                     storage.star_system_states.insert(system, star_system_state);
                 },
                 Action::SendFleet(fleet) => {
                     let system = fleet.from;
-                    let mut star_system_state = _get_star_system_state(system, time);
+                    let mut star_system_state = _get_updated_star_system_state(system, time);
 
 
                     match star_system_state.owner {
                         Option::None => {
-                            panic SpaceError::NotOwner
+                            // panic SpaceError::NotOwner
+                            continue; // We cannot error out in reveal phase, so we just skip the fleet
                         },
                         Option::Some(owner) => {
                             if owner != account {
-                                panic SpaceError::NotOwner
+                                // panic SpaceError::NotOwner
+                                continue; // We cannot error out in reveal phase, so we just skip the fleet
                             }
                         }
                     }
+
+                    let full_fleet_id = sha256(
+                        {
+                            let mut bytes = Bytes::new();
+                            bytes
+                                .append(Bytes::from(encode(fleet)));
+                            bytes
+                                .append(Bytes::from(encode(secret)));
+                            bytes
+                        },
+                    );
+                    let existing_fleet = storage.fleets.get(fleet.id).try_read();
+                    if existing_fleet.is_some() {
+                        // panic SpaceError::FleetAlreadyExist;
+                        continue; // We cannot error out in reveal phase, so we just skip the fleet
+                    }
  
                     if fleet.spaceships > star_system_state.spaceships {
-                        panic SpaceError::NotEnoughSpaceships;
+                        // panic SpaceError::NotEnoughSpaceships;
+                        continue; // We cannot error out in reveal phase, so we just skip the fleet
                     }
 
                     star_system_state.spaceships -= fleet.spaceships;
@@ -359,9 +401,22 @@ impl Space for Contract {
 
                     // TODO events
 
+
+                    let fleet_state = FleetState {
+                        owner: account,
+                        from: fleet.from,
+                        spaceships: fleet.spaceships,
+                        launch_epoch: epoch,
+                        destination: fleet.destination,
+                    };
+                    
+                    storage.fleets.insert(
+                        fleet.id,
+                        fleet_state,
+                    );
                     match fleet.destination {
                         Destination::Known(destination) => {
-                            _resolve_fleet_arrival(fleet, destination);
+                            _resolve_fleet_arrival(fleet_state, destination, time);
                         },
                         Destination::Eventual(_) => {
 
