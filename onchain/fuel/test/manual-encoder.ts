@@ -162,7 +162,7 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
     }
   }
 
-  // Handle arrays/vectors
+  // Handle arrays/vectors (including Vec<T> objects)
   if (Array.isArray(input)) {
     // Encode each element and concatenate (no length prefix)
     const elementBytes = input.map((item) => encodeInputAsBytes(item));
@@ -178,6 +178,12 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
       offset += bytes.length;
     }
     return result;
+  }
+
+  // Handle Vec<T> objects (Fuel's Vec type)
+  if (input && typeof input === "object" && Array.isArray(input.elements)) {
+    // This is a Vec<T> object with an elements array
+    return encodeInputAsBytes(input.elements);
   }
 
   // Handle objects (enums and structs)
@@ -306,25 +312,25 @@ export function encodeCommitmentData(
 }
 
 /**
- * Generic commitment data encoder that works with any Input type
+ * Generic encoder that takes variable arguments and concatenates their byte encodings
+ * Useful for creating hash inputs from multiple data pieces
  */
-export function encodeGenericCommitmentData<T extends InputType>(
-  items: Vec<T>,
-  secret: string
-): Uint8Array {
-  const itemBytes = encodeGenericVecAsBytes(items);
+export function encodeMultipleInputs(...args: InputType[]): Uint8Array {
+  // Encode each argument
+  const argBytes = args.map((arg) => encodeInputAsBytes(arg));
 
-  // Convert secret (b256) to bytes
-  const secretHex = secret.startsWith("0x") ? secret.slice(2) : secret;
-  const secretBytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    secretBytes[i] = parseInt(secretHex.substr(i * 2, 2), 16);
+  // Calculate total size
+  const totalSize = argBytes.reduce((sum, bytes) => sum + bytes.length, 0);
+
+  // Combine all bytes
+  const result = new Uint8Array(totalSize);
+  let offset = 0;
+
+  // Copy argument bytes in order
+  for (const bytes of argBytes) {
+    result.set(bytes, offset);
+    offset += bytes.length;
   }
-
-  // Combine item bytes and secret bytes
-  const result = new Uint8Array(itemBytes.length + secretBytes.length);
-  result.set(itemBytes, 0);
-  result.set(secretBytes, itemBytes.length);
 
   return result;
 }

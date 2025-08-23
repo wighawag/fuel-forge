@@ -7,7 +7,7 @@ import {
   encodeActionVecAsBytes,
   encodeInputAsBytes,
   encodeGenericVecAsBytes,
-  encodeGenericCommitmentData,
+  encodeMultipleInputs,
 } from "./manual-encoder";
 
 describe("Generic Encoder", () => {
@@ -116,12 +116,18 @@ describe("Generic Encoder", () => {
     expect(enumBytes[0]).toBe(1); // Known discriminant
   });
 
-  test("generic commitment encoder works with ActionInput", () => {
+  test("generic commitment encoder works with variable arguments", () => {
     const actions: Vec<ActionInput> = [{ Activate: { system: 1 } }];
     const secret =
       "0x0000000000000000000000000000000000000000000000000000000000000001";
+    const extraData = 42;
 
-    const genericCommitmentBytes = encodeGenericCommitmentData(actions, secret);
+    // Test with multiple arguments
+    const genericCommitmentBytes = encodeMultipleInputs(
+      actions,
+      secret,
+      extraData
+    );
     const hash = sha256(genericCommitmentBytes);
 
     console.log(
@@ -130,9 +136,31 @@ describe("Generic Encoder", () => {
     );
     console.log("Generic commitment hash:", hash);
 
-    // Should be action bytes + secret bytes
-    expect(genericCommitmentBytes.length).toBe(9 + 32); // Activate (9) + secret (32)
+    // Should be action bytes + secret bytes + extra data bytes
+    expect(genericCommitmentBytes.length).toBe(9 + 32 + 8); // Activate (9) + secret (32) + u64 (8)
     expect(hash).toMatch(/^0x[a-f0-9]{64}$/);
+
+    // Test with just actions and secret (original behavior)
+    const simpleCommitmentBytes = encodeMultipleInputs(actions, secret);
+    expect(simpleCommitmentBytes.length).toBe(9 + 32); // Activate (9) + secret (32)
+  });
+
+  test("generic encoder handles Vec objects", () => {
+    // Test with a Vec-like object (has elements array)
+    const vecObj = {
+      elements: [1, 2, 3],
+      length: 3,
+    };
+
+    const bytes = encodeInputAsBytes(vecObj);
+    console.log("Vec object bytes:", Array.from(bytes));
+
+    // Should encode the elements array: 3 u64 values = 24 bytes
+    expect(bytes.length).toBe(24); // 3 * 8 bytes each
+
+    // Should be same as encoding the array directly
+    const arrayBytes = encodeInputAsBytes([1, 2, 3]);
+    expect(bytes).toEqual(arrayBytes);
   });
 
   test("generic encoder handles mixed types", () => {
@@ -147,8 +175,8 @@ describe("Generic Encoder", () => {
     const bytes = encodeInputAsBytes(mixedObj);
     console.log("Mixed object bytes:", Array.from(bytes));
 
-    // Should concatenate fields in alphabetical order: active, id, name
-    // active (1 byte) + id (8 bytes) + name (4 bytes UTF-8) = 13 bytes
+    // Should concatenate fields in original order: id, name, active
+    // id (8 bytes) + name (4 bytes UTF-8) + active (1 byte) = 13 bytes
     expect(bytes.length).toBe(13);
   });
 });
