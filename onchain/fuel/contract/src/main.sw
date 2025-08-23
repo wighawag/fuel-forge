@@ -14,9 +14,25 @@ struct Activation {
     // TODO add bets
 }
 
+impl Hash for Activation {
+    fn hash(self, ref mut hasher: Hasher) {
+        self.system.hash(hasher);
+        // TODO add bets
+    }
+}
+
 enum Destination {
     Eventual: b256, // hash of the destination
     Known: u64, // id of the destination
+}
+
+impl Hash for Destination {
+    fn hash(self, ref mut hasher: Hasher) {
+        match self {
+            Destination::Eventual(val) => val.hash(hasher),
+            Destination::Known(val) => val.hash(hasher),
+        }
+    }
 }
 
 struct Fleet {
@@ -25,10 +41,27 @@ struct Fleet {
     destination: Destination,
 }
 
+impl Hash for Fleet {
+    fn hash(self, ref mut hasher: Hasher) {
+        self.from.hash(hasher);
+        self.spaceships.hash(hasher);
+        self.destination.hash(hasher);
+    }
+}
+
 
 enum Action {
     Activate: Activation,
     SendFleet: Fleet
+}
+
+impl Hash for Action {
+    fn hash(self, ref mut hasher: Hasher) {
+        match self {
+            Action::Activate(activation) => activation.hash(hasher),
+            Action::SendFleet(fleet) => fleet.hash(hasher),
+        }
+    }
 }
 
 // struct RevealedFleet {
@@ -88,6 +121,9 @@ abi Space {
 
     #[storage(write, read)]
     fn increase_time(seconds: u64);
+
+    #[storage(read)]
+    fn get_time() -> u64;
     // ------------------------------------------------------------------------
     #[storage(write, read)]
     fn commit_actions(hash: b256);
@@ -160,16 +196,10 @@ fn _time() -> Time {
 }
 
 fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
-    sha256(
-        {
-            let mut bytes = Bytes::new();
-            bytes
-                .append(Bytes::from(encode(actions)));
-            bytes
-                .append(Bytes::from(encode(secret)));
-            bytes
-        },
-    )
+    sha256((
+        actions,
+        secret,
+    ))
 }
 fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     // TODO reaction
@@ -253,6 +283,10 @@ impl Space for Contract {
         let mut time_delta = storage.time_delta.try_read().unwrap_or(Duration::seconds(0));
         time_delta += Duration::seconds(seconds);
         storage.time_delta.write(time_delta);
+    }
+    #[storage(read)]
+    fn get_time() -> u64 {
+        _time().as_tai64()
     }
     // ------------------------------------------------------------------------
     #[storage(write, read)]

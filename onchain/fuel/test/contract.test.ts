@@ -5,7 +5,7 @@ import { describe, test, expect } from 'vitest';
 import { TestContractFactory } from '../typescript/src/contracts/TestContractFactory';
 import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
-import { V } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js';
+import { B256Coder, BigNumberCoder, EnumCoder, NumberCoder, sha256, StructCoder, TupleCoder, VecCoder } from 'fuels';
 
 describe('Space', () => {
   test('Commiting actions succeed', async () => {
@@ -40,14 +40,69 @@ describe('Space', () => {
       spaceships: 100,
       destination: {Eventual: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"}}});
     
-    let secret = 0x0000000000000000000000000000000000000000000000000000000000000001;
-    
-    // let hash = _hash_actions(actions, secret);
-    // caller.commit_actions(hash);
+    const secret = "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-    // caller.increase_time(COMMIT_PHASE_DURATION.as_seconds());
+    const actionCoder = new EnumCoder('enum', {
+      Activate: new StructCoder('struct', {
+        system: new BigNumberCoder('u64')
+      }),
+      SendFleet: new StructCoder('struct', {
+        from: new BigNumberCoder('u64'),
+        spaceships: new BigNumberCoder('u64'),
+        destination: new EnumCoder('enum', {
+          Eventual: new B256Coder(),
+          Known: new BigNumberCoder('u64'),
+        })
+      }),
+    });
+    const actionListCoder = new VecCoder(actionCoder);
+    const commitmentCoder = new TupleCoder([
+      actionListCoder,
+      new B256Coder()
+    ]);
+    const commitmentBytes = commitmentCoder.encode([actions, secret]);
+    const hash = sha256(commitmentBytes)
 
-    // caller.reveal_actions(identity, secret, actions);
+
+     using testNode = await launchTestNode({
+      contractsConfigs: [
+        {
+          factory: TestContractFactory,
+        },
+      ],
+    });
+    const {
+      contracts: [contract],
+      wallets: [wallet],
+    } = testNode;
+    const { waitForResult: commitActionsCall } = await contract.functions.commit_actions(hash).call();
+    const commitActionsResult = await commitActionsCall();
+
+    console.log({commitActionsResult});
+
+    const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
+    const getTimeResult1 = await getTimeCall1();
+
+    console.log({time1: getTimeResult1.value.toString()});
+
+    const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(22 * 60 * 60).call();
+    const increaseTimeResult = await increaseTimeCall();
+
+    console.log({increaseTimeResult});
+
+    const { waitForResult: getTimeCall2 } = await contract.functions.get_time().call();
+    const getTimeResult2 = await getTimeCall2();
+
+    console.log({time2: getTimeResult2.value.toString()});
+
+    const { waitForResult: identityCall } = await contract.functions.identity().call();
+    const identityResult = await identityCall();
+
+    console.log({identityResult});
+
+    const { waitForResult: revealActionsCall } = await contract.functions.reveal_actions(identityResult.value, secret, actions).call();
+    await revealActionsCall();
+
   });
 
 });
