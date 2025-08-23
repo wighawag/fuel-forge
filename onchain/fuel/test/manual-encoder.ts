@@ -81,30 +81,20 @@ export function encodeActionInputAsBytes(action: ActionInput): Uint8Array {
 
 /**
  * Encodes a vector of ActionInput as bytes
- * Format: length (u64) + concatenated action bytes
+ * Format: concatenated action bytes (no length prefix)
  */
 export function encodeActionVecAsBytes(actions: Vec<ActionInput>): Uint8Array {
-  // Encode length as u64 (8 bytes, big-endian)
-  const lengthBuffer = new ArrayBuffer(8);
-  const lengthView = new DataView(lengthBuffer);
-  lengthView.setBigUint64(0, BigInt(actions.length), false);
-
   // Encode each action
   const actionBytes = actions.map((action) => encodeActionInputAsBytes(action));
 
   // Calculate total size
-  const totalSize =
-    8 + actionBytes.reduce((sum, bytes) => sum + bytes.length, 0);
+  const totalSize = actionBytes.reduce((sum, bytes) => sum + bytes.length, 0);
 
   // Combine all bytes
   const result = new Uint8Array(totalSize);
   let offset = 0;
 
-  // Copy length
-  result.set(new Uint8Array(lengthBuffer), offset);
-  offset += 8;
-
-  // Copy action bytes
+  // Copy action bytes (no length prefix)
   for (const bytes of actionBytes) {
     result.set(bytes, offset);
     offset += bytes.length;

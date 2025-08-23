@@ -50,7 +50,10 @@ describe("Manual Encoder Demo", () => {
     // Verify the structure is correct
     expect(activateBytes.length).toBe(9); // 1 byte discriminant + 8 bytes u64
     expect(activateBytes[0]).toBe(0); // Activate discriminant
-    expect(commitmentBytes.length).toBeGreaterThan(32); // Should have actions + secret
+
+    // Actions bytes should be: Activate (9) + SendFleet with Known (26) = 35 bytes
+    // Plus secret (32 bytes) = 67 bytes total
+    expect(commitmentBytes.length).toBe(67); // No length prefix, just concatenated actions + secret
   });
 
   test("encodes different action types correctly", () => {

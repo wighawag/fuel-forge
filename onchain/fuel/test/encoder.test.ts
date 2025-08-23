@@ -132,10 +132,13 @@ describe("Manual Encoder", () => {
 
     const bytes = encodeActionVecAsBytes(actions);
 
-    // Should start with length (2 as u64)
-    const lengthBytes = bytes.slice(0, 8);
-    const expectedLength = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 2]);
-    expect(lengthBytes).toEqual(expectedLength);
+    // Should NOT have length prefix, just concatenated action bytes
+    // First action (Activate) should start immediately
+    expect(bytes[0]).toBe(0); // Activate discriminant
+
+    // Calculate expected length: Activate (9 bytes) + SendFleet (26 bytes)
+    const expectedLength = 9 + 26; // No length prefix
+    expect(bytes.length).toBe(expectedLength);
 
     console.log("Action vector bytes length:", bytes.length);
     console.log("Action vector bytes:", Array.from(bytes));

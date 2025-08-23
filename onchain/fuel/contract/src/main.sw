@@ -204,26 +204,26 @@ fn _time() -> u64 {
 }
 
 fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
-     sha256(
-        {
-            let mut bytes = Bytes::new();
-            bytes
-                .append(Bytes::from(encode(actions)));
-            bytes
-                .append(Bytes::from(encode(secret)));
-            bytes
-        },
-    )
+    //  sha256(
+    //     {
+    //         let mut bytes = Bytes::new();
+    //         bytes
+    //             .append(Bytes::from(encode(actions)));
+    //         bytes
+    //             .append(Bytes::from(encode(secret)));
+    //         bytes
+    //     },
+    // )
 
     // sha256((
     //     42u8,
     //     true,
     //     21u64
     // ))
-    // sha256((
-    //     actions,
-    //     secret
-    // ))
+    sha256((
+        actions,
+        secret
+    ))
 }
 fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     // TODO reaction

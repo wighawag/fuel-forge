@@ -96,30 +96,30 @@ describe('Space', () => {
     const secret = "0x0000000000000000000000000000000000000000000000000000000000000001";
 
     // Original Fuel Coder approach: non-cannical and not matching Sway's expected hashing
-    const commitmentCoder = new TupleCoder([
-      new VecCoder(
-        new EnumCoder('enum', {
-          Activate: new StructCoder('struct', {
-            system: new BigNumberCoder('u64')
-          }),
-          SendFleet: new StructCoder('struct', {
-            from: new BigNumberCoder('u64'),
-            spaceships: new BigNumberCoder('u64'),
-            destination: new EnumCoder('enum', {
-              Eventual: new B256Coder(),
-              Known: new BigNumberCoder('u64'),
-            })
-          }),
-      })),
-      new B256Coder()
-    ]);
+    // const commitmentCoder = new TupleCoder([
+    //   new VecCoder(
+    //     new EnumCoder('enum', {
+    //       Activate: new StructCoder('struct', {
+    //         system: new BigNumberCoder('u64')
+    //       }),
+    //       SendFleet: new StructCoder('struct', {
+    //         from: new BigNumberCoder('u64'),
+    //         spaceships: new BigNumberCoder('u64'),
+    //         destination: new EnumCoder('enum', {
+    //           Eventual: new B256Coder(),
+    //           Known: new BigNumberCoder('u64'),
+    //         })
+    //       }),
+    //   })),
+    //   new B256Coder()
+    // ]);
 
-    const commitmentBytes = commitmentCoder.encode([actions, secret]);
-    const hash = sha256(commitmentBytes);
+    // const commitmentBytes = commitmentCoder.encode([actions, secret]);
+    // const hash = sha256(commitmentBytes);
 
     // Manual encoding approach (new)
-    // const commitmentBytes = encodeCommitmentData(actions, secret);
-    // const hash = sha256(commitmentBytes);
+    const commitmentBytes = encodeCommitmentData(actions, secret);
+    const hash = sha256(commitmentBytes);
 
     // Original dummy example 
     // let buffer = new ArrayBuffer(1+1+8);
