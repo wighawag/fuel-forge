@@ -7,6 +7,49 @@ import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
 import { B256Coder, BigNumberCoder, EnumCoder, NumberCoder, sha256, StructCoder, TupleCoder, VecCoder } from 'fuels';
 
+// Utility function to calculate epoch information based on contract logic
+function calculateEpochInfo(currentTime: number) {
+  // Constants from the contract (main.sw)
+  const COMMIT_PHASE_DURATION = 22 * 60 * 60; // 22 hours in seconds
+  const REVEAL_PHASE_DURATION = 2 * 60 * 60;  // 2 hours in seconds
+  const EPOCH_DURATION = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION; // 24 hours
+  const START_TIME = 0; // Contract starts at time 0
+  
+  const timePassed = currentTime - START_TIME;
+  
+  // Calculate current epoch (minimum epoch is 2 as per contract logic)
+  const currentEpoch = Math.floor(timePassed / EPOCH_DURATION) + 2;
+  
+  // Calculate time within current epoch cycle
+  const timeInCurrentEpochCycle = timePassed - ((currentEpoch - 2) * EPOCH_DURATION);
+  
+  // Calculate time left in current epoch
+  const timeLeftInEpoch = EPOCH_DURATION - timeInCurrentEpochCycle;
+  
+  // Determine if we're in commit phase or reveal phase
+  const isCommitPhase = timeInCurrentEpochCycle < COMMIT_PHASE_DURATION;
+  
+  // Calculate time left for commit phase end (when commit phase will end)
+  const timeLeftForCommitEnd = isCommitPhase 
+    ? COMMIT_PHASE_DURATION - timeInCurrentEpochCycle 
+    : 0; // If we're in reveal phase, commit phase has already ended
+  
+  // Calculate time left for reveal phase end (when reveal phase will end, i.e., epoch end)
+  const timeLeftForRevealEnd = timeLeftInEpoch;
+  
+  return {
+    currentEpoch,
+    timeLeftInEpoch,
+    timeInCurrentEpochCycle,
+    isCommitPhase,
+    timeLeftInPhase: isCommitPhase 
+      ? COMMIT_PHASE_DURATION - timeInCurrentEpochCycle 
+      : REVEAL_PHASE_DURATION - (timeInCurrentEpochCycle - COMMIT_PHASE_DURATION),
+    timeLeftForCommitEnd,
+    timeLeftForRevealEnd
+  };
+}
+
 describe('Space', () => {
   test('Commiting actions succeed', async () => {
     using testNode = await launchTestNode({
@@ -74,17 +117,24 @@ describe('Space', () => {
       contracts: [contract],
       wallets: [wallet],
     } = testNode;
-    const { waitForResult: commitActionsCall } = await contract.functions.commit_actions(hash).call();
-    const commitActionsResult = await commitActionsCall();
-
-    // console.log({commitActionsResult});
 
     const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
     const getTimeResult1 = await getTimeCall1();
 
+    const currentTime = parseInt(getTimeResult1.value.toString());
+    const epochInfo = calculateEpochInfo(currentTime);
+    const timeLeftForCommitEnd = epochInfo.timeLeftForCommitEnd;
+
+    console.log({epochInfo});
+
     console.log({time1: getTimeResult1.value.toString()});
 
-    const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(22 * 60 * 60).call();
+    const { waitForResult: commitActionsCall } = await contract.functions.commit_actions(hash).call();
+    const commitActionsResult = await commitActionsCall();
+
+    console.log(commitActionsResult.logs.map(v => JSON.stringify(v)));
+    
+    const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(timeLeftForCommitEnd).call();
     const increaseTimeResult = await increaseTimeCall();
 
     // console.log({increaseTimeResult});
@@ -94,13 +144,20 @@ describe('Space', () => {
 
     console.log({time2: getTimeResult2.value.toString()});
 
+    const currentTime2 = parseInt(getTimeResult2.value.toString());
+    const epochInfo2 = calculateEpochInfo(currentTime2);
+
+    console.log({epochInfo2});
+
     const { waitForResult: identityCall } = await contract.functions.identity().call();
     const identityResult = await identityCall();
 
     // console.log({identityResult});
 
     const { waitForResult: revealActionsCall } = await contract.functions.reveal_actions(identityResult.value, secret, actions).call();
-    await revealActionsCall();
+    const revealActionsResult = await revealActionsCall();
+
+    console.log(revealActionsResult.logs.map(v => JSON.stringify(v)));
 
   });
 

@@ -1,6 +1,6 @@
 contract;
 
-use std::time::*;
+use std::time::Time;
 use std::logging::log;
 use std::codec::encode;
 use std::bytes::Bytes;
@@ -148,7 +148,7 @@ struct StarSystemState {
     owner: Option<Identity>,
     activated: bool,
     spaceships: u64,
-    last_update: Time,
+    last_update: u64,
 }
 // ----------------------------------------------------------------------------
 
@@ -159,7 +159,7 @@ storage {
     // ------------------------------------------------------------------------
     // TODO remove, used for testing only
     // ------------------------------------------------------------------------
-    time_delta: Duration = Duration::seconds(0),
+    time_delta: u64 = 0,
     // ------------------------------------------------------------------------
     commitments: StorageMap<Identity, Commitment> = StorageMap {},
     star_system_states: StorageMap<u64, StarSystemState> = StorageMap {},
@@ -170,29 +170,37 @@ storage {
 // ----------------------------------------------------------------------------
 // CONSTANTS AND CONFIGURABLES
 // ----------------------------------------------------------------------------
-const COMMIT_PHASE_DURATION: Duration = Duration::seconds(22 * 60 * 60); // 22 hour
-const REVEAL_PHASE_DURATION: Duration = Duration::seconds(2 * 60 * 60); // 2 hour
-const START_TIME: Time = Time::new(0);
+const COMMIT_PHASE_DURATION: u64 = 22 * 60 * 60; // 22 hour
+const REVEAL_PHASE_DURATION: u64 = 2 * 60 * 60; // 2 hour
+const START_TIME: u64 = 0;
 // ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 // INTERNAL FUNCTIONS
 // ----------------------------------------------------------------------------
 #[storage(read)]
-fn _epoch() -> (u64, bool, Time) {
-    let epoch_duration = COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION;
+fn _epoch() -> (u64, bool, u64) {
+    // log("_epoch()");
+    let epoch_duration = (COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION);
+    // log(epoch_duration);
     let time = _time();
-    let time_passed: Duration = time.duration_since(START_TIME).unwrap();
+    // log(time);
+    let time_passed = time - START_TIME;
+    // log(time_passed);
 
     // minimum epoch is 2, this make the minimal hypothetical previous reveal phase's epoch to be non-zero
-    let epoch = time_passed.as_seconds() / (epoch_duration.as_seconds()) + 2;
-    let commiting = time_passed.as_seconds() - ((epoch - 2) * epoch_duration.as_seconds()) < COMMIT_PHASE_DURATION.as_seconds();
+    let epoch = time_passed / epoch_duration + 2;
+    // log(epoch);
+    let commiting = (time_passed - ((epoch - 2) * epoch_duration)) < COMMIT_PHASE_DURATION;
+    // log(commiting);
+    // log("--------------------------------");
     (epoch, commiting, time)
 }
 
 #[storage(read)]
-fn _time() -> Time {
-    Time::now() + storage.time_delta.try_read().unwrap_or(Duration::seconds(0))
+fn _time() -> u64 {
+    const TAI_64_CONVERTER: u64 = 10 + (1 << 62);
+    Time::now().as_tai64() - TAI_64_CONVERTER  + storage.time_delta.try_read().unwrap_or(0)
 }
 
 fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
@@ -231,27 +239,27 @@ fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
 }
 
 #[storage(read)]
-fn _get_star_system_state(system: u64, time: Time) -> StarSystemState {
+fn _get_star_system_state(system: u64, time: u64) -> StarSystemState {
     // TODO use match to not update when not existing
     let mut star_system_state = storage.star_system_states.get(system).try_read().unwrap_or(StarSystemState {
         owner: Option::None,
         activated: false,
         spaceships: 0,
-        last_update: _time(),
+        last_update: time,
     });
     _update_star_system(star_system_state, time);
     star_system_state
 }
 
 
-fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
-    let time_passed = time.duration_since(star_system_state.last_update).unwrap_or(Duration::seconds(0));
-    if (time_passed.as_seconds() == 0) {
+fn _update_star_system(ref mut star_system_state: StarSystemState, time: u64) {
+    let time_passed = time - star_system_state.last_update;
+    if (time_passed == 0) {
         return;
     }
     star_system_state.last_update = time;
     if star_system_state.activated {
-        star_system_state.spaceships += time_passed.as_seconds(); // 1 spaceship per seconds // TODO production
+        star_system_state.spaceships += time_passed; // 1 spaceship per seconds // TODO production
         // TODO overflow ?
 
         if star_system_state.spaceships > 600000 {
@@ -260,7 +268,7 @@ fn _update_star_system(ref mut star_system_state: StarSystemState, time: Time) {
 
         // TODO (not necessary) calculate the time_passed based on the number of spaceships produced to ensure the number cannot be frozen by constantly updating the planet
     } else {
-        let destruction = time_passed.as_seconds() / 2; // 1 spaceship per 2 seconds // TODO harshness
+        let destruction = time_passed / 2; // 1 spaceship per 2 seconds // TODO harshness
         if star_system_state.spaceships < destruction {
             star_system_state.spaceships = 0;
             star_system_state.owner = Option::None;
@@ -295,18 +303,33 @@ impl Space for Contract {
     }
     #[storage(write, read)]
     fn increase_time(seconds: u64) {
-        let mut time_delta = storage.time_delta.try_read().unwrap_or(Duration::seconds(0));
-        time_delta += Duration::seconds(seconds);
+        let mut time_delta = storage.time_delta.try_read().unwrap_or(0);
+        time_delta += seconds;
         storage.time_delta.write(time_delta);
     }
     #[storage(read)]
     fn get_time() -> u64 {
-        _time().as_tai64()
+        _time()
     }
     // ------------------------------------------------------------------------
     #[storage(write, read)]
     fn commit_actions(hash: b256) {
-        let (epoch, commiting, _time) = _epoch();
+        // let (epoch, commiting, _time) = _epoch();
+
+        log("_epoch()");
+        let epoch_duration = (COMMIT_PHASE_DURATION + REVEAL_PHASE_DURATION);
+        log(epoch_duration);
+        let time = _time();
+        log(time);
+        let time_passed = time - START_TIME;
+        log(time_passed);
+
+        // minimum epoch is 2, this make the minimal hypothetical previous reveal phase's epoch to be non-zero
+        let epoch = time_passed / epoch_duration + 2;
+        log(epoch);
+        let commiting = (time_passed - ((epoch - 2) * epoch_duration)) < COMMIT_PHASE_DURATION;
+        log(commiting);
+        log("--------------------------------");
 
         if !commiting {
             panic SpaceError::InRevealPhase;
@@ -323,8 +346,10 @@ impl Space for Contract {
         }
 
         commitment.hash = hash;
-        commitment.epoch = epoch;
+        commitment.epoch = epoch ;
         storage.commitments.insert(account, commitment);
+
+        log(epoch);
 
         log(CommitmentSubmitted {
             account: account,
@@ -336,8 +361,11 @@ impl Space for Contract {
     #[storage(write, read)]
     fn reveal_actions(account: Identity, secret: b256, actions: Vec<Action>) {
         let (epoch, commiting, time) = _epoch();
+
+        log(epoch);
+
         if commiting {
-            // panic SpaceError::InCommitmentPhase;
+            panic SpaceError::InCommitmentPhase;
         }
         let mut commitment = storage.commitments.get(account).try_read().unwrap_or(Commitment {
             hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
@@ -348,7 +376,7 @@ impl Space for Contract {
             panic SpaceError::NothingToReveal;
         }
         if commitment.epoch != epoch {
-            // panic SpaceError::InvalidEpoch;
+            panic SpaceError::InvalidEpoch;
         }
 
         let hash_revealed = commitment.hash;
@@ -451,7 +479,7 @@ fn can_commit_and_reveal() {
     let hash = _hash_actions(actions, secret);
     caller.commit_actions(hash);
 
-    caller.increase_time(COMMIT_PHASE_DURATION.as_seconds());
+    caller.increase_time(COMMIT_PHASE_DURATION);
 
     caller.reveal_actions(identity, secret, actions);
 }
@@ -478,7 +506,7 @@ fn fails_to_reveal_if_hashes_do_not_match() {
     let hash = _hash_actions(actions, secret);
     caller.commit_actions(hash);
 
-    caller.increase_time(COMMIT_PHASE_DURATION.as_seconds());
+    caller.increase_time(COMMIT_PHASE_DURATION);
 
     caller.reveal_actions(identity, failing_secret, actions);
 }
