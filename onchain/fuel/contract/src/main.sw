@@ -196,10 +196,25 @@ fn _time() -> Time {
 }
 
 fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
-    sha256((
-        actions,
-        secret,
-    ))
+     sha256(
+        {
+            let mut bytes = Bytes::new();
+            bytes
+                .append(Bytes::from(encode(actions)));
+            bytes
+                .append(Bytes::from(encode(secret)));
+            bytes
+        },
+    )
+
+    // let hasher = Hasher::default();
+    // actions.hash(hasher);
+    // secret.hash(hasher);
+    // hasher.sha256()
+    // sha256((
+    //     actions,
+    //     secret,
+    // ))
 }
 fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
     // TODO reaction
@@ -322,7 +337,7 @@ impl Space for Contract {
     fn reveal_actions(account: Identity, secret: b256, actions: Vec<Action>) {
         let (epoch, commiting, time) = _epoch();
         if commiting {
-            panic SpaceError::InCommitmentPhase;
+            // panic SpaceError::InCommitmentPhase;
         }
         let mut commitment = storage.commitments.get(account).try_read().unwrap_or(Commitment {
             hash: 0x0000000000000000000000000000000000000000000000000000000000000000,
@@ -333,7 +348,7 @@ impl Space for Contract {
             panic SpaceError::NothingToReveal;
         }
         if commitment.epoch != epoch {
-            panic SpaceError::InvalidEpoch;
+            // panic SpaceError::InvalidEpoch;
         }
 
         let hash_revealed = commitment.hash;

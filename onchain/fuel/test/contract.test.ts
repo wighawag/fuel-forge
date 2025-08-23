@@ -42,22 +42,21 @@ describe('Space', () => {
     
     const secret = "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-    const actionCoder = new EnumCoder('enum', {
-      Activate: new StructCoder('struct', {
-        system: new BigNumberCoder('u64')
-      }),
-      SendFleet: new StructCoder('struct', {
-        from: new BigNumberCoder('u64'),
-        spaceships: new BigNumberCoder('u64'),
-        destination: new EnumCoder('enum', {
-          Eventual: new B256Coder(),
-          Known: new BigNumberCoder('u64'),
-        })
-      }),
-    });
-    const actionListCoder = new VecCoder(actionCoder);
     const commitmentCoder = new TupleCoder([
-      actionListCoder,
+      new VecCoder(
+        new EnumCoder('enum', {
+          Activate: new StructCoder('struct', {
+            system: new BigNumberCoder('u64')
+          }),
+          SendFleet: new StructCoder('struct', {
+            from: new BigNumberCoder('u64'),
+            spaceships: new BigNumberCoder('u64'),
+            destination: new EnumCoder('enum', {
+              Eventual: new B256Coder(),
+              Known: new BigNumberCoder('u64'),
+            })
+          }),
+      })),
       new B256Coder()
     ]);
     const commitmentBytes = commitmentCoder.encode([actions, secret]);
@@ -78,7 +77,7 @@ describe('Space', () => {
     const { waitForResult: commitActionsCall } = await contract.functions.commit_actions(hash).call();
     const commitActionsResult = await commitActionsCall();
 
-    console.log({commitActionsResult});
+    // console.log({commitActionsResult});
 
     const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
     const getTimeResult1 = await getTimeCall1();
@@ -88,7 +87,7 @@ describe('Space', () => {
     const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(22 * 60 * 60).call();
     const increaseTimeResult = await increaseTimeCall();
 
-    console.log({increaseTimeResult});
+    // console.log({increaseTimeResult});
 
     const { waitForResult: getTimeCall2 } = await contract.functions.get_time().call();
     const getTimeResult2 = await getTimeCall2();
@@ -98,7 +97,7 @@ describe('Space', () => {
     const { waitForResult: identityCall } = await contract.functions.identity().call();
     const identityResult = await identityCall();
 
-    console.log({identityResult});
+    // console.log({identityResult});
 
     const { waitForResult: revealActionsCall } = await contract.functions.reveal_actions(identityResult.value, secret, actions).call();
     await revealActionsCall();
