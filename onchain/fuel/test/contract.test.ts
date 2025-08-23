@@ -6,7 +6,7 @@ import { TestContractFactory } from '../typescript/src/contracts/TestContractFac
 import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
 import { B256Coder, BigNumberCoder, EnumCoder, NumberCoder, sha256, StructCoder, TupleCoder, VecCoder } from 'fuels';
-import { encodeCommitmentData, encodeMultipleInputs } from './manual-encoder';
+import { encodeCommitmentData, encodeMultipleInputs, Hasher } from './manual-encoder';
 
 // Utility function to calculate epoch information based on contract logic
 function calculateEpochInfo(currentTime: number) {
@@ -118,8 +118,11 @@ describe('Space', () => {
     // const hash = sha256(commitmentBytes);
 
     // Manual encoding approach (new)
-    const commitmentBytes = encodeMultipleInputs(actions, secret);
-    const hash = sha256(commitmentBytes);
+    // const commitmentBytes = encodeMultipleInputs(actions, secret);
+    // const hash = sha256(commitmentBytes);
+
+    const hasher = new Hasher();
+    const hash = hasher.update(actions).update(secret).digest();
 
     // Original dummy example 
     // let buffer = new ArrayBuffer(1+1+8);

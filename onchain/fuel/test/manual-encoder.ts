@@ -1,5 +1,6 @@
 import { ActionInput } from "../typescript/src/contracts/TestContract";
 import { Vec } from "../typescript/src/contracts/common";
+import { sha256 } from "fuels";
 
 // Generic type for any Input type (enums, structs, primitives)
 type InputType = any;
@@ -333,4 +334,85 @@ export function encodeMultipleInputs(...args: InputType[]): Uint8Array {
   }
 
   return result;
+}
+
+/**
+ * Hasher class for incrementally building up hash inputs
+ * Provides a convenient API similar to crypto hashers
+ */
+export class Hasher {
+  private buffer: Uint8Array[];
+
+  constructor() {
+    this.buffer = [];
+  }
+
+  /**
+   * Add input data to the hasher
+   * @param input Any input type that can be encoded
+   * @returns this (for method chaining)
+   */
+  update(input: InputType): this {
+    const bytes = encodeInputAsBytes(input);
+    this.buffer.push(bytes);
+    return this;
+  }
+
+  /**
+   * Compute the final hash of all accumulated data
+   * @returns The SHA-256 hash as a hex string
+   */
+  digest(): string {
+    // Calculate total size
+    const totalSize = this.buffer.reduce((sum, bytes) => sum + bytes.length, 0);
+
+    // Combine all bytes
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const bytes of this.buffer) {
+      combined.set(bytes, offset);
+      offset += bytes.length;
+    }
+
+    // Compute hash
+    return sha256(combined);
+  }
+
+  /**
+   * Get the raw bytes without hashing
+   * @returns The concatenated bytes
+   */
+  getBytes(): Uint8Array {
+    // Calculate total size
+    const totalSize = this.buffer.reduce((sum, bytes) => sum + bytes.length, 0);
+
+    // Combine all bytes
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const bytes of this.buffer) {
+      combined.set(bytes, offset);
+      offset += bytes.length;
+    }
+
+    return combined;
+  }
+
+  /**
+   * Reset the hasher to start fresh
+   * @returns this (for method chaining)
+   */
+  reset(): this {
+    this.buffer = [];
+    return this;
+  }
+
+  /**
+   * Create a new hasher with the same accumulated data
+   * @returns A new Hasher instance with copied data
+   */
+  clone(): Hasher {
+    const newHasher = new Hasher();
+    newHasher.buffer = [...this.buffer];
+    return newHasher;
+  }
 }
