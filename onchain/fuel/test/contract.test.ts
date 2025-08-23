@@ -6,6 +6,7 @@ import { TestContractFactory } from '../typescript/src/contracts/TestContractFac
 import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
 import { B256Coder, BigNumberCoder, EnumCoder, NumberCoder, sha256, StructCoder, TupleCoder, VecCoder } from 'fuels';
+import { encodeCommitmentData } from './manual-encoder';
 
 // Utility function to calculate epoch information based on contract logic
 function calculateEpochInfo(currentTime: number) {
@@ -64,6 +65,15 @@ describe('Space', () => {
       contracts: [contract],
     } = testNode;
 
+    const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
+    const getTimeResult1 = await getTimeCall1();
+    const currentTime = parseInt(getTimeResult1.value.toString());
+    const epochInfo = calculateEpochInfo(currentTime);
+    if(epochInfo.isCommitPhase === false) {
+      const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(epochInfo.timeLeftForRevealEnd).call();
+      await increaseTimeCall();
+    }
+
     const { waitForResult: commitActionsCall } = await contract.functions.commit_actions("0x0000000000000000000000000000000000000000000000000000000000000001").call();
     const { gasUsed } = await commitActionsCall();
 
@@ -85,6 +95,7 @@ describe('Space', () => {
     
     const secret = "0x0000000000000000000000000000000000000000000000000000000000000001";
 
+    // Original Fuel Coder approach: non-cannical and not matching Sway's expected hashing
     const commitmentCoder = new TupleCoder([
       new VecCoder(
         new EnumCoder('enum', {
@@ -102,9 +113,23 @@ describe('Space', () => {
       })),
       new B256Coder()
     ]);
-    const commitmentBytes = commitmentCoder.encode([actions, secret]);
-    const hash = sha256(commitmentBytes)
 
+    const commitmentBytes = commitmentCoder.encode([actions, secret]);
+    const hash = sha256(commitmentBytes);
+
+    // Manual encoding approach (new)
+    // const commitmentBytes = encodeCommitmentData(actions, secret);
+    // const hash = sha256(commitmentBytes);
+
+    // Original dummy example 
+    // let buffer = new ArrayBuffer(1+1+8);
+    // let view = new DataView(buffer);
+    // view.setUint8(0, 42); // Enum variant for Activate
+    // view.setUint8(1, 1); // system: 1
+    // view.setBigUint64(2, 21n, false); // Enum variant for SendFleet
+    // const bytes = new Uint8Array(buffer);
+    // console.log(bytes)
+    // const hash = sha256(bytes);
 
      using testNode = await launchTestNode({
       contractsConfigs: [
@@ -118,16 +143,26 @@ describe('Space', () => {
       wallets: [wallet],
     } = testNode;
 
-    const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
-    const getTimeResult1 = await getTimeCall1();
-
-    const currentTime = parseInt(getTimeResult1.value.toString());
-    const epochInfo = calculateEpochInfo(currentTime);
+    let { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
+    let getTimeResult1 = await getTimeCall1();
+    let currentTime = parseInt(getTimeResult1.value.toString());
+    let epochInfo = calculateEpochInfo(currentTime);
+    if(epochInfo.isCommitPhase === false) {
+      const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(epochInfo.timeLeftForRevealEnd).call();
+      await increaseTimeCall();
+      const res = await contract.functions.get_time().call();
+      getTimeCall1 = res.waitForResult;
+      getTimeResult1 = await getTimeCall1();
+      currentTime = parseInt(getTimeResult1.value.toString());
+      epochInfo = calculateEpochInfo(currentTime);
+    }
     const timeLeftForCommitEnd = epochInfo.timeLeftForCommitEnd;
 
     console.log({epochInfo});
 
     console.log({time1: getTimeResult1.value.toString()});
+
+    
 
     const { waitForResult: commitActionsCall } = await contract.functions.commit_actions(hash).call();
     const commitActionsResult = await commitActionsCall();

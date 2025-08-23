@@ -29,8 +29,8 @@ enum Destination {
 impl Hash for Destination {
     fn hash(self, ref mut hasher: Hasher) {
         match self {
-            Destination::Eventual(val) => val.hash(hasher),
-            Destination::Known(val) => val.hash(hasher),
+            Destination::Eventual(val) => (0u8, val).hash(hasher),
+            Destination::Known(val) => (1u8, val).hash(hasher),
         }
     }
 }
@@ -58,8 +58,8 @@ enum Action {
 impl Hash for Action {
     fn hash(self, ref mut hasher: Hasher) {
         match self {
-            Action::Activate(activation) => activation.hash(hasher),
-            Action::SendFleet(fleet) => fleet.hash(hasher),
+            Action::Activate(activation) => (0u8, activation).hash(hasher),
+            Action::SendFleet(fleet) => (1u8, fleet).hash(hasher),
         }
     }
 }
@@ -215,13 +215,14 @@ fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
         },
     )
 
-    // let hasher = Hasher::default();
-    // actions.hash(hasher);
-    // secret.hash(hasher);
-    // hasher.sha256()
+    // sha256((
+    //     42u8,
+    //     true,
+    //     21u64
+    // ))
     // sha256((
     //     actions,
-    //     secret,
+    //     secret
     // ))
 }
 fn _check_hash(commitment_hash: b256, actions: Vec<Action>, secret: b256) {
