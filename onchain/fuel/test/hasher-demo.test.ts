@@ -4,13 +4,19 @@ import { Vec } from "../typescript/src/contracts/common";
 import { Hasher, encodeMultipleInputs } from "./manual-encoder";
 import { sha256 } from "fuels";
 
+// Define enum context for ActionInput and Destination
+const ENUM_CONTEXT = {
+  ActionInput: ["Activate", "SendFleet"],
+  Destination: ["Eventual", "Known"],
+};
+
 describe("Hasher Demo", () => {
   test("demonstrates Hasher usage patterns", () => {
     console.log("=== Hasher Class Demo ===\n");
 
     // Example 1: Basic usage with method chaining
     console.log("1. Basic usage with method chaining:");
-    const hasher1 = new Hasher();
+    const hasher1 = new Hasher(ENUM_CONTEXT);
     const hash1 = hasher1
       .update({ Activate: { system: 1 } })
       .update(42)
@@ -29,7 +35,7 @@ describe("Hasher Demo", () => {
     const secret =
       "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-    const hasher2 = new Hasher();
+    const hasher2 = new Hasher(ENUM_CONTEXT);
     console.log("   Adding actions...");
     hasher2.update(actions);
     console.log("   Current bytes length:", hasher2.getBytes().length);
@@ -43,7 +49,7 @@ describe("Hasher Demo", () => {
 
     // Example 3: Comparing with direct encoding
     console.log("3. Comparing with direct encoding:");
-    const directBytes = encodeMultipleInputs(actions, secret);
+    const directBytes = encodeMultipleInputs(actions, secret, ENUM_CONTEXT);
     const directHash = sha256(directBytes);
 
     console.log("   Direct encoding hash:", directHash);
@@ -52,7 +58,7 @@ describe("Hasher Demo", () => {
 
     // Example 4: Using reset and clone
     console.log("4. Using reset and clone:");
-    const baseHasher = new Hasher();
+    const baseHasher = new Hasher(ENUM_CONTEXT);
     baseHasher.update({ Activate: { system: 1 } });
 
     // Clone for different variations
@@ -69,7 +75,7 @@ describe("Hasher Demo", () => {
 
     // Example 5: Incremental building
     console.log("5. Incremental building:");
-    const incrementalHasher = new Hasher();
+    const incrementalHasher = new Hasher(ENUM_CONTEXT);
 
     console.log("   Step 1 - Add player action:");
     incrementalHasher.update({ Activate: { system: 1 } });
@@ -86,7 +92,7 @@ describe("Hasher Demo", () => {
 
     // Example 6: Working with different data types
     console.log("6. Working with different data types:");
-    const typeHasher = new Hasher();
+    const typeHasher = new Hasher(ENUM_CONTEXT);
 
     typeHasher
       .update(42) // number
@@ -122,7 +128,7 @@ describe("Hasher Demo", () => {
     console.log("Timestamp:", timestamp);
 
     // Build commitment hash
-    const commitmentHasher = new Hasher();
+    const commitmentHasher = new Hasher(ENUM_CONTEXT);
     const commitmentHash = commitmentHasher
       .update(turnNumber)
       .update(timestamp)
@@ -139,7 +145,7 @@ describe("Hasher Demo", () => {
 
     // Later, during reveal phase, verify the commitment
     console.log("\n--- Reveal Phase ---");
-    const verificationHasher = new Hasher();
+    const verificationHasher = new Hasher(ENUM_CONTEXT);
     const verificationHash = verificationHasher
       .update(turnNumber)
       .update(timestamp)

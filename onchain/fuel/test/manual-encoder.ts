@@ -263,10 +263,11 @@ export function encodeInputAsBytes(
  * Format: concatenated element bytes (no length prefix)
  */
 export function encodeGenericVecAsBytes<T extends InputType>(
-  items: Vec<T>
+  items: Vec<T>,
+  enumContext?: { [enumName: string]: string[] }
 ): Uint8Array {
   // Encode each item
-  const itemBytes = items.map((item) => encodeInputAsBytes(item));
+  const itemBytes = items.map((item) => encodeInputAsBytes(item, enumContext));
 
   // Calculate total size
   const totalSize = itemBytes.reduce((sum, bytes) => sum + bytes.length, 0);
@@ -313,9 +314,28 @@ export function encodeCommitmentData(
  * Generic encoder that takes variable arguments and concatenates their byte encodings
  * Useful for creating hash inputs from multiple data pieces
  */
-export function encodeMultipleInputs(...args: InputType[]): Uint8Array {
+export function encodeMultipleInputs(...args: any[]): Uint8Array {
+  // Check if the last argument is an enum context object
+  let enumContext: { [enumName: string]: string[] } | undefined;
+  let actualArgs = args;
+
+  if (
+    args.length > 0 &&
+    typeof args[args.length - 1] === "object" &&
+    args[args.length - 1] !== null &&
+    !Array.isArray(args[args.length - 1]) &&
+    Object.values(args[args.length - 1] as any).every(
+      (v) => Array.isArray(v) && v.every((item) => typeof item === "string")
+    )
+  ) {
+    enumContext = args[args.length - 1] as { [enumName: string]: string[] };
+    actualArgs = args.slice(0, -1);
+  }
+
   // Encode each argument
-  const argBytes = args.map((arg) => encodeInputAsBytes(arg));
+  const argBytes = actualArgs.map((arg) =>
+    encodeInputAsBytes(arg, enumContext)
+  );
 
   // Calculate total size
   const totalSize = argBytes.reduce((sum, bytes) => sum + bytes.length, 0);

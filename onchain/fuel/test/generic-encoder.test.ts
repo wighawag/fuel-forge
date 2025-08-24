@@ -10,6 +10,11 @@ import {
   encodeMultipleInputs,
 } from "./manual-encoder";
 
+const ENUM_CONTEXT = {
+  ActionInput: ["Activate", "SendFleet"],
+  Destination: ["Eventual", "Known"],
+};
+
 describe("Generic Encoder", () => {
   test("generic encoder produces same results as specific ActionInput encoder", () => {
     const action: ActionInput = { Activate: { system: 1 } };
@@ -18,7 +23,7 @@ describe("Generic Encoder", () => {
     const specificBytes = encodeActionInputAsBytes(action);
 
     // Encode with generic function
-    const genericBytes = encodeInputAsBytes(action);
+    const genericBytes = encodeInputAsBytes(action, ENUM_CONTEXT);
 
     console.log("Specific encoder bytes:", Array.from(specificBytes));
     console.log("Generic encoder bytes:", Array.from(genericBytes));
@@ -36,7 +41,7 @@ describe("Generic Encoder", () => {
     };
 
     const specificBytes = encodeActionInputAsBytes(action);
-    const genericBytes = encodeInputAsBytes(action);
+    const genericBytes = encodeInputAsBytes(action, ENUM_CONTEXT);
 
     console.log("SendFleet specific bytes:", Array.from(specificBytes));
     console.log("SendFleet generic bytes:", Array.from(genericBytes));
@@ -57,7 +62,7 @@ describe("Generic Encoder", () => {
     };
 
     const specificBytes = encodeActionInputAsBytes(action);
-    const genericBytes = encodeInputAsBytes(action);
+    const genericBytes = encodeInputAsBytes(action, ENUM_CONTEXT);
 
     expect(genericBytes).toEqual(specificBytes);
   });
@@ -69,7 +74,7 @@ describe("Generic Encoder", () => {
     ];
 
     const specificBytes = encodeActionVecAsBytes(actions);
-    const genericBytes = encodeGenericVecAsBytes(actions);
+    const genericBytes = encodeGenericVecAsBytes(actions, ENUM_CONTEXT);
 
     console.log("Vector specific bytes length:", specificBytes.length);
     console.log("Vector generic bytes length:", genericBytes.length);
@@ -79,19 +84,20 @@ describe("Generic Encoder", () => {
 
   test("generic encoder handles primitive types", () => {
     // Test number encoding
-    const numberBytes = encodeInputAsBytes(42);
+    const numberBytes = encodeInputAsBytes(42, ENUM_CONTEXT);
     expect(numberBytes.length).toBe(8); // u64
     expect(numberBytes).toEqual(new Uint8Array([0, 0, 0, 0, 0, 0, 0, 42]));
 
     // Test boolean encoding
-    const trueByte = encodeInputAsBytes(true);
-    const falseByte = encodeInputAsBytes(false);
+    const trueByte = encodeInputAsBytes(true, ENUM_CONTEXT);
+    const falseByte = encodeInputAsBytes(false, ENUM_CONTEXT);
     expect(trueByte).toEqual(new Uint8Array([1]));
     expect(falseByte).toEqual(new Uint8Array([0]));
 
     // Test b256 string encoding
     const hashBytes = encodeInputAsBytes(
-      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      ENUM_CONTEXT
     );
     expect(hashBytes.length).toBe(32);
     expect(hashBytes[0]).toBe(0x12);
@@ -101,11 +107,11 @@ describe("Generic Encoder", () => {
   test("generic encoder distinguishes enums from structs", () => {
     // Enum (uppercase key)
     const enumObj = { Known: 42 };
-    const enumBytes = encodeInputAsBytes(enumObj);
+    const enumBytes = encodeInputAsBytes(enumObj, ENUM_CONTEXT);
 
     // Struct (lowercase key)
     const structObj = { system: 42 };
-    const structBytes = encodeInputAsBytes(structObj);
+    const structBytes = encodeInputAsBytes(structObj, ENUM_CONTEXT);
 
     console.log("Enum bytes:", Array.from(enumBytes));
     console.log("Struct bytes:", Array.from(structBytes));
@@ -126,7 +132,8 @@ describe("Generic Encoder", () => {
     const genericCommitmentBytes = encodeMultipleInputs(
       actions,
       secret,
-      extraData
+      extraData,
+      ENUM_CONTEXT
     );
     const hash = sha256(genericCommitmentBytes);
 
@@ -141,7 +148,11 @@ describe("Generic Encoder", () => {
     expect(hash).toMatch(/^0x[a-f0-9]{64}$/);
 
     // Test with just actions and secret (original behavior)
-    const simpleCommitmentBytes = encodeMultipleInputs(actions, secret);
+    const simpleCommitmentBytes = encodeMultipleInputs(
+      actions,
+      secret,
+      ENUM_CONTEXT
+    );
     expect(simpleCommitmentBytes.length).toBe(9 + 32); // Activate (9) + secret (32)
   });
 
@@ -152,14 +163,14 @@ describe("Generic Encoder", () => {
       length: 3,
     };
 
-    const bytes = encodeInputAsBytes(vecObj);
+    const bytes = encodeInputAsBytes(vecObj, ENUM_CONTEXT);
     console.log("Vec object bytes:", Array.from(bytes));
 
     // Should encode the elements array: 3 u64 values = 24 bytes
     expect(bytes.length).toBe(24); // 3 * 8 bytes each
 
     // Should be same as encoding the array directly
-    const arrayBytes = encodeInputAsBytes([1, 2, 3]);
+    const arrayBytes = encodeInputAsBytes([1, 2, 3], ENUM_CONTEXT);
     expect(bytes).toEqual(arrayBytes);
   });
 
@@ -172,7 +183,7 @@ describe("Generic Encoder", () => {
       active: true,
     };
 
-    const bytes = encodeInputAsBytes(mixedObj);
+    const bytes = encodeInputAsBytes(mixedObj, ENUM_CONTEXT);
     console.log("Mixed object bytes:", Array.from(bytes));
 
     // Should concatenate fields in original order: id, name, active

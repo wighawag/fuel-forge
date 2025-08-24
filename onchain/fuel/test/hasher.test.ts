@@ -8,6 +8,12 @@ import {
   encodeCommitmentData,
 } from "./manual-encoder";
 
+// Define enum context for ActionInput and Destination
+const ENUM_CONTEXT = {
+  ActionInput: ["Activate", "SendFleet"],
+  Destination: ["Eventual", "Known"],
+};
+
 describe("Hasher", () => {
   test("hasher produces same results as direct encoding functions", () => {
     const actions: Vec<ActionInput> = [{ Activate: { system: 1 } }];
@@ -15,11 +21,11 @@ describe("Hasher", () => {
       "0x0000000000000000000000000000000000000000000000000000000000000001";
 
     // Using direct function
-    const directBytes = encodeMultipleInputs(actions, secret);
+    const directBytes = encodeMultipleInputs(actions, secret, ENUM_CONTEXT);
     const directHash = sha256(directBytes);
 
     // Using hasher
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
     const hasherHash = hasher.update(actions).update(secret).finalize();
 
     console.log("Direct hash:", directHash);
@@ -29,7 +35,7 @@ describe("Hasher", () => {
   });
 
   test("hasher supports method chaining", () => {
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
     const result = hasher
       .update({ Activate: { system: 1 } })
       .update(42)
@@ -45,10 +51,10 @@ describe("Hasher", () => {
     const data3 = "test";
 
     // Using direct function
-    const directBytes = encodeMultipleInputs(data1, data2, data3);
+    const directBytes = encodeMultipleInputs(data1, data2, data3, ENUM_CONTEXT);
 
     // Using hasher
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
     const hasherBytes = hasher
       .update(data1)
       .update(data2)
@@ -62,7 +68,7 @@ describe("Hasher", () => {
   });
 
   test("hasher reset works correctly", () => {
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
 
     // Add some data
     hasher.update({ Activate: { system: 1 } }).update(42);
@@ -78,7 +84,7 @@ describe("Hasher", () => {
   });
 
   test("hasher clone creates independent copy", () => {
-    const hasher1 = new Hasher();
+    const hasher1 = new Hasher(ENUM_CONTEXT);
     hasher1.update({ Activate: { system: 1 } }).update(42);
 
     // Clone the hasher
@@ -125,7 +131,7 @@ describe("Hasher", () => {
     const commitmentHash = sha256(commitmentBytes);
 
     // Using hasher
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
     const hasherHash = hasher.update(actions).update(secret).finalize();
 
     console.log("Commitment hash:", commitmentHash);
@@ -178,7 +184,7 @@ describe("Hasher", () => {
   });
 
   test("hasher can be reused after digest", () => {
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
 
     // Add data and get hash
     hasher.update({ Activate: { system: 1 } });
@@ -193,7 +199,11 @@ describe("Hasher", () => {
     expect(secondHash).toMatch(/^0x[a-f0-9]{64}$/);
 
     // Verify the second hash includes both pieces of data
-    const expectedBytes = encodeMultipleInputs({ Activate: { system: 1 } }, 42);
+    const expectedBytes = encodeMultipleInputs(
+      { Activate: { system: 1 } },
+      42,
+      ENUM_CONTEXT
+    );
     const actualBytes = hasher.getBytes();
     expect(actualBytes).toEqual(expectedBytes);
   });

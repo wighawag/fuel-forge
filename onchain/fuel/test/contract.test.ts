@@ -8,6 +8,12 @@ import { Vec } from '../typescript/src/contracts/common';
 // import {Hasher} from 'fuels-hasher';
 import {Hasher} from './manual-encoder';
 
+// Define enum context for ActionInput and Destination
+const ENUM_CONTEXT = {
+  ActionInput: ["Activate", "SendFleet"],
+  Destination: ["Eventual", "Known"]
+};
+
 // Utility function to calculate epoch information based on contract logic
 function calculateEpochInfo(currentTime: number) {
   // Constants from the contract (main.sw)
@@ -121,7 +127,7 @@ describe('Space', () => {
     // const commitmentBytes = encodeMultipleInputs(actions, secret);
     // const hash = sha256(commitmentBytes);
 
-    const hasher = new Hasher();
+    const hasher = new Hasher(ENUM_CONTEXT);
     const hash = hasher.update(actions).update(secret).finalize();
 
     // Original dummy example 

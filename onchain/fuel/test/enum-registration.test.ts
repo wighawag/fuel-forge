@@ -1,23 +1,21 @@
 import { describe, test, expect } from "vitest";
-import {
-  registerEnumVariants,
-  encodeInputAsBytes,
-  Hasher,
-} from "./manual-encoder";
+import { encodeInputAsBytes, Hasher } from "./manual-encoder";
 
-describe("Enum Registration System", () => {
-  test("demonstrates enum registration for custom types", () => {
-    // Register a custom enum type with its variants in declaration order
-    registerEnumVariants("MyCustomEnum", ["First", "Second", "Third"]);
+describe("Enum Context System", () => {
+  test("demonstrates enum context parameter usage", () => {
+    // Define enum context inline
+    const enumContext = {
+      MyCustomEnum: ["First", "Second", "Third"],
+    };
 
-    // Test encoding with registered enum
+    // Test encoding with enum context
     const firstVariant = { First: 42 };
     const secondVariant = { Second: "hello" };
     const thirdVariant = { Third: true };
 
-    const firstBytes = encodeInputAsBytes(firstVariant);
-    const secondBytes = encodeInputAsBytes(secondVariant);
-    const thirdBytes = encodeInputAsBytes(thirdVariant);
+    const firstBytes = encodeInputAsBytes(firstVariant, enumContext);
+    const secondBytes = encodeInputAsBytes(secondVariant, enumContext);
+    const thirdBytes = encodeInputAsBytes(thirdVariant, enumContext);
 
     console.log("First variant bytes:", Array.from(firstBytes));
     console.log("Second variant bytes:", Array.from(secondBytes));
@@ -29,8 +27,8 @@ describe("Enum Registration System", () => {
     expect(thirdBytes[0]).toBe(2); // Third = index 2
   });
 
-  test("demonstrates enum context parameter usage", () => {
-    // Define enum context inline without global registration
+  test("demonstrates multiple enum types in context", () => {
+    // Define enum context with multiple enums
     const enumContext = {
       GameState: ["Waiting", "Playing", "Finished"],
       PlayerAction: ["Move", "Attack", "Defend", "Skip"],
@@ -62,10 +60,12 @@ describe("Enum Registration System", () => {
   });
 
   test("demonstrates Hasher with custom enum types", () => {
-    // Register enum for this test
-    registerEnumVariants("Status", ["Pending", "Active", "Inactive"]);
+    // Define enum context for this test
+    const enumContext = {
+      Status: ["Pending", "Active", "Inactive"],
+    };
 
-    const hasher = new Hasher();
+    const hasher = new Hasher(enumContext);
     const hash = hasher
       .update({ Active: { userId: 123 } })
       .update("some-data")
@@ -76,12 +76,10 @@ describe("Enum Registration System", () => {
     expect(hash).toMatch(/^0x[a-f0-9]{64}$/);
   });
 
-  test("demonstrates mixed registration and context usage", () => {
-    // Register one enum globally
-    registerEnumVariants("Priority", ["Low", "Medium", "High", "Critical"]);
-
-    // Use context for another enum
+  test("demonstrates complex enum context usage", () => {
+    // Define comprehensive enum context
     const enumContext = {
+      Priority: ["Low", "Medium", "High", "Critical"],
       TaskType: ["Bug", "Feature", "Documentation", "Test"],
     };
 
@@ -91,10 +89,10 @@ describe("Enum Registration System", () => {
       assignee: "john",
     };
 
-    // This should work because Priority is registered and TaskType is in context
+    // This should work because both enums are in context
     const taskBytes = encodeInputAsBytes(task, enumContext);
 
-    console.log("Mixed task bytes:", Array.from(taskBytes));
+    console.log("Task bytes:", Array.from(taskBytes));
     expect(taskBytes.length).toBeGreaterThan(0);
   });
 
@@ -106,7 +104,9 @@ describe("Enum Registration System", () => {
     //   East: (),
     //   West: (),
     // }
-    registerEnumVariants("Direction", ["North", "South", "East", "West"]);
+    const enumContext = {
+      Direction: ["North", "South", "East", "West"],
+    };
 
     const directions = [
       { North: null },
@@ -115,7 +115,9 @@ describe("Enum Registration System", () => {
       { West: null },
     ];
 
-    const encodedDirections = directions.map((dir) => encodeInputAsBytes(dir));
+    const encodedDirections = directions.map((dir) =>
+      encodeInputAsBytes(dir, enumContext)
+    );
 
     // Verify discriminants match Sway declaration order
     expect(encodedDirections[0][0]).toBe(0); // North
@@ -129,19 +131,47 @@ describe("Enum Registration System", () => {
     );
   });
 
-  test("demonstrates pre-registered ActionInput and Destination enums", () => {
-    // These should work without additional registration because they're pre-registered
+  test("demonstrates ActionInput and Destination enum usage", () => {
+    // Define enum context for ActionInput and Destination
+    const enumContext = {
+      ActionInput: ["Activate", "SendFleet"],
+      Destination: ["Eventual", "Known"],
+    };
+
     const action = { Activate: { system: 1 } };
     const destination = { Known: 42 };
 
-    const actionBytes = encodeInputAsBytes(action);
-    const destBytes = encodeInputAsBytes(destination);
+    const actionBytes = encodeInputAsBytes(action, enumContext);
+    const destBytes = encodeInputAsBytes(destination, enumContext);
 
-    console.log("Pre-registered ActionInput bytes:", Array.from(actionBytes));
-    console.log("Pre-registered Destination bytes:", Array.from(destBytes));
+    console.log("ActionInput bytes:", Array.from(actionBytes));
+    console.log("Destination bytes:", Array.from(destBytes));
 
-    // Verify correct discriminants for pre-registered enums
+    // Verify correct discriminants
     expect(actionBytes[0]).toBe(0); // Activate is first in ActionInput
     expect(destBytes[0]).toBe(1); // Known is second in Destination (after Eventual)
+  });
+
+  test("demonstrates nested enum structures", () => {
+    const enumContext = {
+      ActionInput: ["Activate", "SendFleet"],
+      Destination: ["Eventual", "Known"],
+    };
+
+    const complexAction = {
+      SendFleet: {
+        from: 1,
+        spaceships: 100,
+        destination: { Known: 2 },
+      },
+    };
+
+    const bytes = encodeInputAsBytes(complexAction, enumContext);
+
+    console.log("Complex action bytes:", Array.from(bytes));
+
+    // Verify structure: SendFleet discriminant (1) + from (8) + spaceships (8) + destination
+    expect(bytes[0]).toBe(1); // SendFleet discriminant
+    expect(bytes.length).toBeGreaterThan(17); // At least 1 + 8 + 8 + destination bytes
   });
 });
