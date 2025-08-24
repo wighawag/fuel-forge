@@ -20,7 +20,7 @@ describe("Hasher", () => {
 
     // Using hasher
     const hasher = new Hasher();
-    const hasherHash = hasher.update(actions).update(secret).digest();
+    const hasherHash = hasher.update(actions).update(secret).finalize();
 
     console.log("Direct hash:", directHash);
     console.log("Hasher hash:", hasherHash);
@@ -34,7 +34,7 @@ describe("Hasher", () => {
       .update({ Activate: { system: 1 } })
       .update(42)
       .update("test")
-      .digest();
+      .finalize();
 
     expect(result).toMatch(/^0x[a-f0-9]{64}$/);
   });
@@ -66,11 +66,11 @@ describe("Hasher", () => {
 
     // Add some data
     hasher.update({ Activate: { system: 1 } }).update(42);
-    const firstHash = hasher.digest();
+    const firstHash = hasher.finalize();
 
     // Reset and add different data
     hasher.reset().update("different").update(123);
-    const secondHash = hasher.digest();
+    const secondHash = hasher.finalize();
 
     expect(firstHash).not.toBe(secondHash);
     expect(firstHash).toMatch(/^0x[a-f0-9]{64}$/);
@@ -88,8 +88,8 @@ describe("Hasher", () => {
     hasher1.update("original");
     hasher2.update("cloned");
 
-    const hash1 = hasher1.digest();
-    const hash2 = hasher2.digest();
+    const hash1 = hasher1.finalize();
+    const hash2 = hasher2.finalize();
 
     expect(hash1).not.toBe(hash2);
     expect(hash1).toMatch(/^0x[a-f0-9]{64}$/);
@@ -126,7 +126,7 @@ describe("Hasher", () => {
 
     // Using hasher
     const hasher = new Hasher();
-    const hasherHash = hasher.update(actions).update(secret).digest();
+    const hasherHash = hasher.update(actions).update(secret).finalize();
 
     console.log("Commitment hash:", commitmentHash);
     console.log("Hasher hash:", hasherHash);
@@ -145,7 +145,7 @@ describe("Hasher", () => {
       .update(
         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
       ) // b256
-      .digest();
+      .finalize();
 
     expect(hash).toMatch(/^0x[a-f0-9]{64}$/);
 
@@ -167,7 +167,7 @@ describe("Hasher", () => {
     const hasher = new Hasher();
 
     // Empty hasher should produce hash of empty bytes
-    const emptyHash = hasher.digest();
+    const emptyHash = hasher.finalize();
     const expectedEmptyHash = sha256(new Uint8Array(0));
 
     expect(emptyHash).toBe(expectedEmptyHash);
@@ -182,11 +182,11 @@ describe("Hasher", () => {
 
     // Add data and get hash
     hasher.update({ Activate: { system: 1 } });
-    const firstHash = hasher.digest();
+    const firstHash = hasher.finalize();
 
     // Add more data and get another hash (should include previous data)
     hasher.update(42);
-    const secondHash = hasher.digest();
+    const secondHash = hasher.finalize();
 
     expect(firstHash).not.toBe(secondHash);
     expect(firstHash).toMatch(/^0x[a-f0-9]{64}$/);

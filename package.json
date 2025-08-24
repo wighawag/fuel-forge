@@ -34,6 +34,7 @@
     "start": "zellij-launcher a $npm_package_name || zellij -n zellij.kdl -s $npm_package_name"
   },
   "dependencies": {
-    "@etherplay/wallet-connector-fuel": "link:../../../github.com/wighawag/etherplay-connect/packages/etherplay-wallet-connector-fuel"
+    "@etherplay/wallet-connector-fuel": "link:../../../github.com/wighawag/etherplay-connect/packages/etherplay-wallet-connector-fuel",
+    "fuels-hasher": "link:../../../github.com/wighawag/fuels-hasher"
   }
 }

@@ -15,7 +15,7 @@ describe("Hasher Demo", () => {
       .update({ Activate: { system: 1 } })
       .update(42)
       .update("hello")
-      .digest();
+      .finalize();
 
     console.log("   Hash:", hash1);
     console.log("   Bytes length:", hasher1.getBytes().length, "bytes\n");
@@ -38,7 +38,7 @@ describe("Hasher Demo", () => {
     hasher2.update(secret);
     console.log("   Final bytes length:", hasher2.getBytes().length);
 
-    const commitmentHash = hasher2.digest();
+    const commitmentHash = hasher2.finalize();
     console.log("   Commitment hash:", commitmentHash, "\n");
 
     // Example 3: Comparing with direct encoding
@@ -56,15 +56,15 @@ describe("Hasher Demo", () => {
     baseHasher.update({ Activate: { system: 1 } });
 
     // Clone for different variations
-    const variation1 = baseHasher.clone().update("variation1").digest();
-    const variation2 = baseHasher.clone().update("variation2").digest();
+    const variation1 = baseHasher.clone().update("variation1").finalize();
+    const variation2 = baseHasher.clone().update("variation2").finalize();
 
     console.log("   Base + variation1:", variation1);
     console.log("   Base + variation2:", variation2);
 
     // Reset and start fresh
     baseHasher.reset().update("fresh start");
-    const freshHash = baseHasher.digest();
+    const freshHash = baseHasher.finalize();
     console.log("   Fresh start hash: ", freshHash, "\n");
 
     // Example 5: Incremental building
@@ -73,15 +73,15 @@ describe("Hasher Demo", () => {
 
     console.log("   Step 1 - Add player action:");
     incrementalHasher.update({ Activate: { system: 1 } });
-    console.log("   Current hash:", incrementalHasher.digest());
+    console.log("   Current hash:", incrementalHasher.finalize());
 
     console.log("   Step 2 - Add timestamp:");
     incrementalHasher.update(Date.now());
-    console.log("   Current hash:", incrementalHasher.digest());
+    console.log("   Current hash:", incrementalHasher.finalize());
 
     console.log("   Step 3 - Add nonce:");
     incrementalHasher.update(12345);
-    const finalHash = incrementalHasher.digest();
+    const finalHash = incrementalHasher.finalize();
     console.log("   Final hash:  ", finalHash, "\n");
 
     // Example 6: Working with different data types
@@ -99,7 +99,7 @@ describe("Hasher Demo", () => {
         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
       ); // b256
 
-    console.log("   Mixed types hash:", typeHasher.digest());
+    console.log("   Mixed types hash:", typeHasher.finalize());
     console.log("   Total bytes:", typeHasher.getBytes().length, "bytes");
   });
 
@@ -128,7 +128,7 @@ describe("Hasher Demo", () => {
       .update(timestamp)
       .update(playerActions)
       .update(playerSecret)
-      .digest();
+      .finalize();
 
     console.log("Commitment hash:", commitmentHash);
     console.log(
@@ -145,7 +145,7 @@ describe("Hasher Demo", () => {
       .update(timestamp)
       .update(playerActions)
       .update(playerSecret)
-      .digest();
+      .finalize();
 
     console.log("Verification hash:", verificationHash);
     console.log("Commitment valid:", commitmentHash === verificationHash);

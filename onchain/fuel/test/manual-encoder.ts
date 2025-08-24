@@ -110,8 +110,12 @@ export function encodeActionVecAsBytes(actions: Vec<ActionInput>): Uint8Array {
 /**
  * Generic function to encode any Input type as bytes
  * Uses the convention that enum variants start with uppercase letters
+ * For enums, requires explicit registration or context
  */
-export function encodeInputAsBytes(input: InputType): Uint8Array {
+export function encodeInputAsBytes(
+  input: InputType,
+  enumContext?: { [enumName: string]: string[] }
+): Uint8Array {
   // Handle null/undefined
   if (input === null || input === undefined) {
     return new Uint8Array(0);
@@ -166,7 +170,9 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
   // Handle arrays/vectors (including Vec<T> objects)
   if (Array.isArray(input)) {
     // Encode each element and concatenate (no length prefix)
-    const elementBytes = input.map((item) => encodeInputAsBytes(item));
+    const elementBytes = input.map((item) =>
+      encodeInputAsBytes(item, enumContext)
+    );
     const totalSize = elementBytes.reduce(
       (sum, bytes) => sum + bytes.length,
       0
@@ -184,7 +190,7 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
   // Handle Vec<T> objects (Fuel's Vec type)
   if (input && typeof input === "object" && Array.isArray(input.elements)) {
     // This is a Vec<T> object with an elements array
-    return encodeInputAsBytes(input.elements);
+    return encodeInputAsBytes(input.elements, enumContext);
   }
 
   // Handle objects (enums and structs)
@@ -199,10 +205,31 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
       const variantName = enumKeys[0];
       const variantValue = input[variantName];
 
-      // Get discriminant based on common enum variant names
-      const discriminant = getEnumDiscriminant(variantName);
-      const discriminantByte = new Uint8Array([discriminant]);
-      const valueBytes = encodeInputAsBytes(variantValue);
+      // Try to find enum context or registry
+      let discriminant: number;
+      let enumFound = false;
+
+      // First, try to find in provided enumContext
+      if (enumContext) {
+        for (const [enumName, variants] of Object.entries(enumContext)) {
+          if (variants.includes(variantName)) {
+            discriminant = variants.indexOf(variantName);
+            enumFound = true;
+            break;
+          }
+        }
+      }
+
+      // If still not found, throw error
+      if (!enumFound) {
+        throw new Error(
+          `Enum variant '${variantName}' not found in provided enumContext or global registry. ` +
+            `Please provide enumContext parameter or register the enum with registerEnumVariants().`
+        );
+      }
+
+      const discriminantByte = new Uint8Array([discriminant!]);
+      const valueBytes = encodeInputAsBytes(variantValue, enumContext);
 
       const result = new Uint8Array(
         discriminantByte.length + valueBytes.length
@@ -215,7 +242,7 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
     // Handle as struct - concatenate all field values in original order (not sorted)
     const fieldBytes: Uint8Array[] = [];
     for (const key of keys) {
-      fieldBytes.push(encodeInputAsBytes(input[key]));
+      fieldBytes.push(encodeInputAsBytes(input[key], enumContext));
     }
 
     const totalSize = fieldBytes.reduce((sum, bytes) => sum + bytes.length, 0);
@@ -229,36 +256,6 @@ export function encodeInputAsBytes(input: InputType): Uint8Array {
   }
 
   throw new Error(`Cannot encode input of type: ${typeof input}`);
-}
-
-/**
- * Helper function to get enum discriminant from variant name
- * Maps common enum variants to their expected indices
- */
-function getEnumDiscriminant(variantName: string): number {
-  // Common mappings for known enum variants
-  const knownVariants: { [key: string]: number } = {
-    Activate: 0,
-    SendFleet: 1,
-    Eventual: 0,
-    Known: 1,
-    Address: 0,
-    ContractId: 1,
-    // Add more as needed
-  };
-
-  if (variantName in knownVariants) {
-    return knownVariants[variantName];
-  }
-
-  // Fallback: simple hash for unknown variants
-  let hash = 0;
-  for (let i = 0; i < variantName.length; i++) {
-    const char = variantName.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash) % 256;
 }
 
 /**
@@ -337,44 +334,38 @@ export function encodeMultipleInputs(...args: InputType[]): Uint8Array {
 }
 
 /**
- * Hasher class for incrementally building up hash inputs
- * Provides a convenient API similar to crypto hashers
+ * Incremental hasher for building hash inputs step by step
+ * Supports enum context for proper enum encoding
  */
 export class Hasher {
-  private buffer: Uint8Array[];
+  private buffer: Uint8Array[] = [];
+  private enumContext?: { [enumName: string]: string[] };
 
-  constructor() {
-    this.buffer = [];
+  /**
+   * Create a new hasher
+   * @param enumContext Optional enum context for encoding enum variants
+   */
+  constructor(enumContext?: { [enumName: string]: string[] }) {
+    this.enumContext = enumContext;
   }
 
   /**
-   * Add input data to the hasher
-   * @param input Any input type that can be encoded
+   * Add data to the hash input
+   * @param input The input to encode and add
    * @returns this (for method chaining)
    */
   update(input: InputType): this {
-    const bytes = encodeInputAsBytes(input);
+    const bytes = encodeInputAsBytes(input, this.enumContext);
     this.buffer.push(bytes);
     return this;
   }
 
   /**
-   * Compute the final hash of all accumulated data
-   * @returns The SHA-256 hash as a hex string
+   * Finalize and compute the SHA-256 hash
+   * @returns The hash as a hex string with 0x prefix
    */
-  digest(): string {
-    // Calculate total size
-    const totalSize = this.buffer.reduce((sum, bytes) => sum + bytes.length, 0);
-
-    // Combine all bytes
-    const combined = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const bytes of this.buffer) {
-      combined.set(bytes, offset);
-      offset += bytes.length;
-    }
-
-    // Compute hash
+  finalize(): string {
+    const combined = this.getBytes();
     return sha256(combined);
   }
 
@@ -411,7 +402,7 @@ export class Hasher {
    * @returns A new Hasher instance with copied data
    */
   clone(): Hasher {
-    const newHasher = new Hasher();
+    const newHasher = new Hasher(this.enumContext);
     newHasher.buffer = [...this.buffer];
     return newHasher;
   }
