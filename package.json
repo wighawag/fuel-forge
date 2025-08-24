@@ -24,7 +24,7 @@
     "web:dev": "ldenv pnpm --filter ./web dev",
     "web:build": "ldenv pnpm --filter ./web build",
     "onchain:dev": "killall fuel-core; ldenv pnpm --filter ./onchain/fuel dev",
-    "onchain:typescript:watch": "ldenv pnpm --filter ./onchain/fuel typescript:watch",
+    "onchain:contracts:dev": "ldenv pnpm --filter ./onchain/fuel contracts:dev",
     "---------------------- BUILD ----------------------": "",
     "build": "pnpm build",
     "serve": "pnpm run --filter ./web serve",

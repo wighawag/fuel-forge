@@ -20,9 +20,9 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "dev": "fuels dev",
+    "dev": "node delete_proxy_address.js && fuels dev",
+    "contracts:dev": "as-soon -w contract/src pnpm build",
     "build": "fuels build && pnpm typescript",
-    "typescript": "node fix-imports.js && tsc --project typescript/tsconfig.json",
-    "typescript:watch": "as-soon -w typescript/src pnpm typescript"
+    "typescript": "node fix-imports.js && tsc --project typescript/tsconfig.json"
   }
 }

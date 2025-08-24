@@ -15,8 +15,8 @@ layout {
         pane name="onchain" command="pnpm"  {
 			args "onchain:dev"
 		}
-        pane name="onchain:typescript" command="pnpm"  {
-			args "onchain:typescript:watch"
+		 pane name="onchain" command="pnpm"  {
+			args "onchain:contracts:dev"
 		}
 	}
 }

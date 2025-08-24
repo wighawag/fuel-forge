@@ -219,7 +219,7 @@ fn _hash_actions(actions: Vec<Action>, secret: b256) -> b256 {
     //     42u8,
     //     true,
     //     21u64
-    // ))
+    // )) 
     sha256((
         actions,
         secret
