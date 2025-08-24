@@ -14,6 +14,7 @@
   "devDependencies": {
     "@types/node": "^24.2.1",
     "as-soon": "^0.0.11",
+    "fuel-ts-hasher": "^0.0.1",
     "fuels": "^0.101.3",
     "ldenv": "^0.3.12",
     "typescript": "^5.8.2",

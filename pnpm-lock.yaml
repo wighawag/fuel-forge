@@ -4,19 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  fuels-hasher: link:../../../github.com/wighawag/fuels-hasher
-
 importers:
 
   .:
-    dependencies:
-      '@etherplay/wallet-connector-fuel':
-        specifier: link:../../../github.com/wighawag/etherplay-connect/packages/etherplay-wallet-connector-fuel
-        version: link:../../../github.com/wighawag/etherplay-connect/packages/etherplay-wallet-connector-fuel
-      fuels-hasher:
-        specifier: link:../../../github.com/wighawag/fuels-hasher
-        version: link:../../../github.com/wighawag/fuels-hasher
     devDependencies:
       ldenv:
         specifier: ^0.3.12
@@ -39,6 +29,9 @@ importers:
       as-soon:
         specifier: ^0.0.11
         version: 0.0.11
+      fuel-ts-hasher:
+        specifier: ^0.0.1
+        version: 0.0.1(fuels@0.101.3(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.1)))
       fuels:
         specifier: ^0.101.3
         version: 0.101.3(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.1))
@@ -4071,6 +4064,11 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
+
+  fuel-ts-hasher@0.0.1:
+    resolution: {integrity: sha512-wEGZIE0UUYluAD3zmAkvGEO/giVLYz8o/ju2ZWcH+KkXtDyNwRybrR9gwlOMcXSGGXpnd8OntS+761dlGK0RXA==}
+    peerDependencies:
+      fuels: ^0.101.3
 
   fuels@0.101.3:
     resolution: {integrity: sha512-NTCYDT2lZ8ZjVAkA1rfp37r7fMM8V/91Qx0KUGYqXqjHl9ySsmL3ay64NP4W0gczpwipc3K5j/WWxvVZ9fcQ+Q==}
@@ -13013,6 +13011,10 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  fuel-ts-hasher@0.0.1(fuels@0.101.3(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.1))):
+    dependencies:
+      fuels: 0.101.3(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.1))
 
   fuels@0.101.3(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.17.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.1)):
     dependencies:

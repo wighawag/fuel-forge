@@ -5,7 +5,7 @@ import { describe, test, expect } from 'vitest';
 import { TestContractFactory } from '../typescript/src/contracts/TestContractFactory';
 import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
-import {Hasher} from 'fuels-hasher';
+import {Hasher} from 'fuel-ts-hasher';
 // import {Hasher} from './manual-encoder';
 
 // Define enum context for ActionInput and Destination
