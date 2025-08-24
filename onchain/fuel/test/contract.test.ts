@@ -5,8 +5,8 @@ import { describe, test, expect } from 'vitest';
 import { TestContractFactory } from '../typescript/src/contracts/TestContractFactory';
 import { ActionInput } from '../typescript/src/contracts/TestContract';
 import { Vec } from '../typescript/src/contracts/common';
-// import {Hasher} from 'fuels-hasher';
-import {Hasher} from './manual-encoder';
+import {Hasher} from 'fuels-hasher';
+// import {Hasher} from './manual-encoder';
 
 // Define enum context for ActionInput and Destination
 const ENUM_CONTEXT = {
@@ -71,8 +71,7 @@ describe('Space', () => {
       contracts: [contract],
     } = testNode;
 
-    const { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
-    const getTimeResult1 = await getTimeCall1();
+    const getTimeResult1 = await contract.functions.get_time().get();
     const currentTime = parseInt(getTimeResult1.value.toString());
     const epochInfo = calculateEpochInfo(currentTime);
     if(epochInfo.isCommitPhase === false) {
@@ -152,16 +151,13 @@ describe('Space', () => {
       wallets: [wallet],
     } = testNode;
 
-    let { waitForResult: getTimeCall1 } = await contract.functions.get_time().call();
-    let getTimeResult1 = await getTimeCall1();
+    let getTimeResult1 = await contract.functions.get_time().get();
     let currentTime = parseInt(getTimeResult1.value.toString());
     let epochInfo = calculateEpochInfo(currentTime);
     if(epochInfo.isCommitPhase === false) {
       const { waitForResult: increaseTimeCall } = await contract.functions.increase_time(epochInfo.timeLeftForRevealEnd).call();
       await increaseTimeCall();
-      const res = await contract.functions.get_time().call();
-      getTimeCall1 = res.waitForResult;
-      getTimeResult1 = await getTimeCall1();
+      getTimeResult1 = await contract.functions.get_time().get();
       currentTime = parseInt(getTimeResult1.value.toString());
       epochInfo = calculateEpochInfo(currentTime);
     }
@@ -183,8 +179,7 @@ describe('Space', () => {
 
     // console.log({increaseTimeResult});
 
-    const { waitForResult: getTimeCall2 } = await contract.functions.get_time().call();
-    const getTimeResult2 = await getTimeCall2();
+    const getTimeResult2 = await contract.functions.get_time().get();
 
     console.log({time2: getTimeResult2.value.toString()});
 
@@ -193,9 +188,7 @@ describe('Space', () => {
 
     console.log({epochInfo2});
 
-    const { waitForResult: identityCall } = await contract.functions.identity().call();
-    const identityResult = await identityCall();
-
+    const identityResult = await contract.functions.identity().get();
     // console.log({identityResult});
 
     const { waitForResult: revealActionsCall } = await contract.functions.reveal_actions(identityResult.value, secret, actions).call();
